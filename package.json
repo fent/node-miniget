@@ -1,0 +1,34 @@
+{
+  "name": "miniget",
+  "description": "A small HTTP(S) GET request library, with redirects and streaming.",
+  "keywords": [
+    "request",
+    "http",
+    "https",
+    "redirect",
+    "stream"
+  ],
+  "version": "0.1.0",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/fent/node-miniget.git"
+  },
+  "author": "fent (https://github.com/fent)",
+  "main": "./lib/index.js",
+  "files": [
+    "lib"
+  ],
+  "scripts": {
+    "test": "istanbul cover node_modules/.bin/_mocha -- test/*-test.js"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "istanbul": "*",
+    "mocha": "*",
+    "nock": "^9.0.9"
+  },
+  "engines": {
+    "node": ">=0.12"
+  },
+  "license": "MIT"
+}
