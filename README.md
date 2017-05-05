@@ -1,5 +1,7 @@
 # node-miniget
 
+[![Greenkeeper badge](https://badges.greenkeeper.io/fent/node-miniget.svg)](https://greenkeeper.io/)
+
 A small http(s) GET library with only redirects, concatenating, streaming, and no dependencies. This keeps filesize small for potential browser use.
 
 [![Build Status](https://secure.travis-ci.org/fent/node-miniget.svg)](http://travis-ci.org/fent/node-miniget)
