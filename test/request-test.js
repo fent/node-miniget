@@ -3,16 +3,16 @@ const nock    = require('nock');
 const miniget = require('../lib/index');
 
 
-describe('Make a request', function() {
-  before(function() { nock.disableNetConnect(); });
-  after(function() { nock.enableNetConnect(); });
+describe('Make a request', () => {
+  before(() => { nock.disableNetConnect(); });
+  after(() => { nock.enableNetConnect(); });
 
-  describe('with callback', function() {
-    it('Gives contents of page', function(done) {
+  describe('with callback', () => {
+    it('Gives contents of page', (done) => {
       var scope = nock('http://website.com')
         .get('/path')
         .replyWithFile(200, __filename);
-      miniget('http://website.com/path', function(err, res, body) {
+      miniget('http://website.com/path', (err, res, body) => {
         assert.ifError(err);
         scope.done();
         assert.equal(res.statusCode, 200);
@@ -21,8 +21,8 @@ describe('Make a request', function() {
       });
     });
 
-    describe('with options', function() {
-      it('Makes request with options', function(done) {
+    describe('with options', () => {
+      it('Makes request with options', (done) => {
         var scope = nock('http://website.com', {
           reqheaders: { 'User-Agent': 'miniget' },
         })
@@ -30,7 +30,7 @@ describe('Make a request', function() {
           .replyWithFile(200, __filename);
         miniget('http://website.com/path', {
           headers: { 'User-Agent': 'miniget' },
-        }, function(err, res, body) {
+        }, (err, res, body) => {
           assert.ifError(err);
           scope.done();
           assert.equal(res.statusCode, 200);
@@ -40,12 +40,12 @@ describe('Make a request', function() {
       });
     });
 
-    describe('that errors', function() {
-      it('Calls callback with error', function(done) {
+    describe('that errors', () => {
+      it('Calls callback with error', (done) => {
         var scope = nock('https://mysite.com')
           .get('/path')
           .replyWithError('oh no');
-        miniget('https://mysite.com/path', function(err) {
+        miniget('https://mysite.com/path', (err) => {
           assert.ok(err);
           scope.done();
           done();
@@ -53,12 +53,12 @@ describe('Make a request', function() {
       });
     });
 
-    describe('with bad path', function() {
-      it('Calls callback with error', function(done) {
+    describe('with bad path', () => {
+      it('Calls callback with error', (done) => {
         var scope = nock('https://mysite.com')
           .get('/badpath')
           .reply(404, 'not exists');
-        miniget('https://mysite.com/badpath', function(err) {
+        miniget('https://mysite.com/badpath', (err) => {
           assert.ok(err);
           scope.done();
           done();
@@ -67,14 +67,14 @@ describe('Make a request', function() {
     });
   });
 
-  describe('using https protocol', function() {
-    it('Uses the https module', function(done) {
+  describe('using https protocol', () => {
+    it('Uses the https module', (done) => {
       var scope = nock('https://secureplace.net')
         .get('/')
         .reply(200);
       var stream = miniget('https://secureplace.net');
       stream.on('error', done);
-      stream.on('end', function() {
+      stream.on('end', () => {
         scope.done();
         done();
       });
@@ -82,16 +82,16 @@ describe('Make a request', function() {
     });
   });
 
-  describe('without callback', function() {
-    it('Returns a stream', function(done) {
+  describe('without callback', () => {
+    it('Returns a stream', (done) => {
       var scope = nock('http://website.com')
         .get('/path')
         .replyWithFile(200, __filename);
       var stream = miniget('http://website.com/path');
       stream.on('error', done);
-      stream.on('response', function(res) {
+      stream.on('response', (res) => {
         res.on('error', done);
-        res.on('end', function() {
+        res.on('end', () => {
           scope.done();
           done();
         });
@@ -100,19 +100,19 @@ describe('Make a request', function() {
     });
   });
 
-  describe('with an incorrect URL', function() {
-    describe('with callback', function() {
-      it('Called with error', function(done) {
-        miniget('file:///Users/roly/', function(err) {
+  describe('with an incorrect URL', () => {
+    describe('with callback', () => {
+      it('Called with error', (done) => {
+        miniget('file:///Users/roly/', (err) => {
           assert.ok(err);
           done();
         });
       });
     });
 
-    describe('without callback', function() {
-      it('Throws error', function(done) {
-        miniget('file:///Users/roly/').on('error', function(err) {
+    describe('without callback', () => {
+      it('Throws error', (done) => {
+        miniget('file:///Users/roly/').on('error', (err) => {
           assert.ok(err);
           done();
         });
@@ -120,8 +120,8 @@ describe('Make a request', function() {
     });
   });
 
-  describe('that redirects', function() {
-    it('Should download file after redirect', function(done) {
+  describe('that redirects', () => {
+    it('Should download file after redirect', (done) => {
       var scope = nock('http://mysite.com');
       scope
         .get('/pathy')
@@ -129,7 +129,7 @@ describe('Make a request', function() {
       scope
         .get('/redirected!')
         .reply(200, 'Helloo!');
-      miniget('http://mysite.com/pathy', function(err, res, body) {
+      miniget('http://mysite.com/pathy', (err, res, body) => {
         assert.ifError(err);
         scope.done();
         assert.equal(res.statusCode, 200);
@@ -138,8 +138,8 @@ describe('Make a request', function() {
       });
     });
 
-    describe('too many times', function() {
-      it('Emits error after 3 retries', function(done) {
+    describe('too many times', () => {
+      it('Emits error after 3 retries', (done) => {
         var scope = nock('http://yoursite.com');
         scope
           .get('/one')
@@ -150,7 +150,7 @@ describe('Make a request', function() {
         scope
           .get('/three')
           .reply(302, '', { Location: 'http://yoursite.com/four' });
-        miniget('http://yoursite.com/one', function(err) {
+        miniget('http://yoursite.com/one', (err) => {
           assert.ok(err);
           scope.done();
           assert.equal(err.message, 'Too many redirects');
@@ -160,19 +160,19 @@ describe('Make a request', function() {
     });
   });
 
-  describe('using the `transform` option', function() {
-    it('Calls `transform` function and customizes request', function(done) {
+  describe('using the `transform` option', () => {
+    it('Calls `transform` function and customizes request', (done) => {
       var scope = nock('http://other.com')
         .get('/http://supplies.com/boxes')
         .reply(200, '[  ]');
       miniget('http://supplies.com/boxes', {
-        transform: function(parsed) {
+        transform: (parsed) => {
           return {
             host: 'other.com',
             path: '/' + parsed.href,
           };
         },
-      }, function(err, res, body) {
+      }, (err, res, body) => {
         scope.done();
         assert.ifError(err);
         assert.equal(res.statusCode, 200);
@@ -182,19 +182,19 @@ describe('Make a request', function() {
     });
   });
 
-  describe('that gets aborted', function() {
-    describe('immediately', function() {
-      it('Does not call callback or end stream', function(done) {
+  describe('that gets aborted', () => {
+    describe('immediately', () => {
+      it('Does not call callback or end stream', (done) => {
         var scope = nock('http://anime.me')
           .get('/')
           .reply(200, 'ooooaaaaaaaeeeee');
         var stream = miniget('http://anime.me');
-        stream.on('end', function() {
+        stream.on('end', () => {
           throw Error('`end` event should not be called');
         });
         var abortCalled = false;
-        stream.on('abort', function() { abortCalled = true; });
-        stream.on('error', function(err) {
+        stream.on('abort', () => { abortCalled = true; });
+        stream.on('error', (err) => {
           scope.done();
           assert.ok(abortCalled);
           assert.ok(err);
@@ -205,28 +205,28 @@ describe('Make a request', function() {
       });
     });
 
-    describe('after getting response but before end', function() {
-      it('Response does not give any more data', function(done) {
+    describe('after getting response but before end', () => {
+      it('Response does not give any more data', (done) => {
         var scope = nock('http://www.google1.com')
           .get('/one')
           .delayBody(500)
           .reply(200, '<html></html>');
         var stream = miniget('http://www.google1.com/one');
-        stream.on('end', function() {
+        stream.on('end', () => {
           throw Error('`end` event should not be called');
         });
         var abortCalled = false;
-        stream.on('abort', function() { abortCalled = true; });
-        stream.on('data', function() {
+        stream.on('abort', () => { abortCalled = true; });
+        stream.on('data', () => {
           throw Error('Should not read any data');
         });
-        stream.on('error', function(err) {
+        stream.on('error', (err) => {
           scope.done();
           assert.ok(abortCalled);
           assert.equal(err.message, 'socket hang up');
           done();
         });
-        stream.on('response', function() {
+        stream.on('response', () => {
           stream.abort();
         });
       });

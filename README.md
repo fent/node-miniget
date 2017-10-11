@@ -31,7 +31,7 @@ miniget('http://api.mywebsite.com/v1/messages.json')
 
 ### miniget(url, [options], [callback(err, body)])
 
-Makes a GET request. `options` can have any options [from the `http.request()` function](https://nodejs.org/api/http.html#http_http_request_options_callback), in addition to
+Makes a GET request. `options` can have any properties from the [`http.request()` function](https://nodejs.org/api/http.html#http_http_request_options_callback), in addition to
 
 * `maxRedirects` - Default is `3`.
 * `highWaterMark` - Amount of data to buffer when in stream mode.

@@ -25,10 +25,10 @@
   "devDependencies": {
     "istanbul": "^0.4.5",
     "mocha": "^4.0.0",
-    "nock": "^9.0.9"
+    "nock": "^9.0.22"
   },
   "engines": {
-    "node": ">=0.12"
+    "node": ">=4"
   },
   "license": "MIT"
 }
