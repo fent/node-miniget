@@ -6,6 +6,7 @@ const miniget = require('../lib/index');
 describe('Make a request', () => {
   before(() => { nock.disableNetConnect(); });
   after(() => { nock.enableNetConnect(); });
+  afterEach(() => { nock.cleanAll(); });
 
   describe('with callback', () => {
     it('Gives contents of page', (done) => {
@@ -185,22 +186,15 @@ describe('Make a request', () => {
   describe('that gets aborted', () => {
     describe('immediately', () => {
       it('Does not call callback or end stream', (done) => {
-        var scope = nock('http://anime.me')
+        nock('http://anime.me')
           .get('/')
           .reply(200, 'ooooaaaaaaaeeeee');
         var stream = miniget('http://anime.me');
         stream.on('end', () => {
           throw Error('`end` event should not be called');
         });
-        var abortCalled = false;
-        stream.on('abort', () => { abortCalled = true; });
-        stream.on('error', (err) => {
-          scope.done();
-          assert.ok(abortCalled);
-          assert.ok(err);
-          assert.equal(err.message, 'socket hang up');
-          done();
-        });
+        stream.on('abort', done);
+        stream.on('error', done);
         stream.abort();
       });
     });
