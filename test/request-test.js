@@ -10,7 +10,7 @@ describe('Make a request', () => {
 
   describe('with callback', () => {
     it('Gives contents of page', (done) => {
-      var scope = nock('http://website.com')
+      let scope = nock('http://website.com')
         .get('/path')
         .replyWithFile(200, __filename);
       miniget('http://website.com/path', (err, res, body) => {
@@ -24,7 +24,7 @@ describe('Make a request', () => {
 
     describe('with options', () => {
       it('Makes request with options', (done) => {
-        var scope = nock('http://website.com', {
+        let scope = nock('http://website.com', {
           reqheaders: { 'User-Agent': 'miniget' },
         })
           .get('/path')
@@ -43,7 +43,7 @@ describe('Make a request', () => {
 
     describe('that errors', () => {
       it('Calls callback with error', (done) => {
-        var scope = nock('https://mysite.com')
+        let scope = nock('https://mysite.com')
           .get('/path')
           .replyWithError('oh no');
         miniget('https://mysite.com/path', (err) => {
@@ -56,7 +56,7 @@ describe('Make a request', () => {
 
     describe('with bad path', () => {
       it('Calls callback with error', (done) => {
-        var scope = nock('https://mysite.com')
+        let scope = nock('https://mysite.com')
           .get('/badpath')
           .reply(404, 'not exists');
         miniget('https://mysite.com/badpath', (err) => {
@@ -70,10 +70,10 @@ describe('Make a request', () => {
 
   describe('using https protocol', () => {
     it('Uses the https module', (done) => {
-      var scope = nock('https://secureplace.net')
+      let scope = nock('https://secureplace.net')
         .get('/')
         .reply(200);
-      var stream = miniget('https://secureplace.net');
+      let stream = miniget('https://secureplace.net');
       stream.on('error', done);
       stream.on('end', () => {
         scope.done();
@@ -85,10 +85,10 @@ describe('Make a request', () => {
 
   describe('without callback', () => {
     it('Returns a stream', (done) => {
-      var scope = nock('http://website.com')
+      let scope = nock('http://website.com')
         .get('/path')
         .replyWithFile(200, __filename);
-      var stream = miniget('http://website.com/path');
+      let stream = miniget('http://website.com/path');
       stream.on('error', done);
       stream.on('response', (res) => {
         res.on('error', done);
@@ -123,7 +123,7 @@ describe('Make a request', () => {
 
   describe('that redirects', () => {
     it('Should download file after redirect', (done) => {
-      var scope = nock('http://mysite.com');
+      let scope = nock('http://mysite.com');
       scope
         .get('/pathy')
         .reply(302, '', { Location: 'http://mysite.com/redirected!' });
@@ -141,7 +141,7 @@ describe('Make a request', () => {
 
     describe('too many times', () => {
       it('Emits error after 3 retries', (done) => {
-        var scope = nock('http://yoursite.com');
+        let scope = nock('http://yoursite.com');
         scope
           .get('/one')
           .reply(302, '', { Location: 'http://yoursite.com/two' });
@@ -163,7 +163,7 @@ describe('Make a request', () => {
 
   describe('using the `transform` option', () => {
     it('Calls `transform` function and customizes request', (done) => {
-      var scope = nock('http://other.com')
+      let scope = nock('http://other.com')
         .get('/http://supplies.com/boxes')
         .reply(200, '[  ]');
       miniget('http://supplies.com/boxes', {
@@ -189,7 +189,7 @@ describe('Make a request', () => {
         nock('http://anime.me')
           .get('/')
           .reply(200, 'ooooaaaaaaaeeeee');
-        var stream = miniget('http://anime.me');
+        let stream = miniget('http://anime.me');
         stream.on('end', () => {
           throw Error('`end` event should not be called');
         });
@@ -201,15 +201,15 @@ describe('Make a request', () => {
 
     describe('after getting response but before end', () => {
       it('Response does not give any more data', (done) => {
-        var scope = nock('http://www.google1.com')
+        let scope = nock('http://www.google1.com')
           .get('/one')
           .delayBody(500)
           .reply(200, '<html></html>');
-        var stream = miniget('http://www.google1.com/one');
+        let stream = miniget('http://www.google1.com/one');
         stream.on('end', () => {
           throw Error('`end` event should not be called');
         });
-        var abortCalled = false;
+        let abortCalled = false;
         stream.on('abort', () => { abortCalled = true; });
         stream.on('data', () => {
           throw Error('Should not read any data');
