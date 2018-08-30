@@ -21,7 +21,9 @@
   "scripts": {
     "test": "istanbul cover node_modules/.bin/_mocha -- test/*-test.js"
   },
-  "dependencies": {},
+  "dependencies": {
+    "lolex": "^2.7.1"
+  },
   "devDependencies": {
     "istanbul": "^0.4.5",
     "mocha": "^5.0.0",

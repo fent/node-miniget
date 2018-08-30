@@ -1,5 +1,6 @@
 const assert  = require('assert');
 const nock    = require('nock');
+const lolex   = require('lolex');
 const miniget = require('../lib/index');
 
 
@@ -45,9 +46,10 @@ describe('Make a request', () => {
       it('Calls callback with error', (done) => {
         let scope = nock('https://mysite.com')
           .get('/path')
-          .replyWithError('oh no');
-        miniget('https://mysite.com/path', (err) => {
+          .replyWithError('ENOTFOUND');
+        miniget('https://mysite.com/path', { maxRetries: 0 }, (err) => {
           assert.ok(err);
+          assert.equal(err.message, 'ENOTFOUND');
           scope.done();
           done();
         });
@@ -61,6 +63,43 @@ describe('Make a request', () => {
           .reply(404, 'not exists');
         miniget('https://mysite.com/badpath', (err) => {
           assert.ok(err);
+          scope.done();
+          done();
+        });
+      });
+    });
+  });
+
+  describe('that errors', () => {
+    it('Emits error event', (done) => {
+      let clock = lolex.install();
+      after(clock.uninstall);
+      let scope = nock('https://mysite.com')
+        .get('/path')
+        .replyWithError('ENOTFOUND')
+        .get('/path')
+        .replyWithError('ENOTFOUND')
+        .get('/path')
+        .reply(500, 'oh no 3');
+      let stream = miniget('https://mysite.com/path');
+      stream.on('retry', (retryCount) => {
+        clock.tick(retryCount * 100);
+      });
+      stream.on('error', (err) => {
+        assert.equal(err.message, 'Status code: 500');
+        scope.done();
+        done();
+      });
+    });
+
+    describe('With no retries', () => {
+      it('Emits error event', (done) => {
+        let scope = nock('https://mysite.com')
+          .get('/path')
+          .replyWithError('oh no 1');
+        let stream = miniget('https://mysite.com/path', { maxRetries: 0 });
+        stream.on('error', (err) => {
+          assert.equal(err.message, 'oh no 1');
           scope.done();
           done();
         });
@@ -123,11 +162,9 @@ describe('Make a request', () => {
 
   describe('that redirects', () => {
     it('Should download file after redirect', (done) => {
-      let scope = nock('http://mysite.com');
-      scope
+      let scope = nock('http://mysite.com')
         .get('/pathy')
-        .reply(302, '', { Location: 'http://mysite.com/redirected!' });
-      scope
+        .reply(302, '', { Location: 'http://mysite.com/redirected!' })
         .get('/redirected!')
         .reply(200, 'Helloo!');
       miniget('http://mysite.com/pathy', (err, res, body) => {
@@ -141,17 +178,14 @@ describe('Make a request', () => {
 
     describe('too many times', () => {
       it('Emits error after 3 retries', (done) => {
-        let scope = nock('http://yoursite.com');
-        scope
-          .get('/one')
-          .reply(302, '', { Location: 'http://yoursite.com/two' });
-        scope
-          .get('/two')
-          .reply(302, '', { Location: 'http://yoursite.com/three' });
-        scope
-          .get('/three')
-          .reply(302, '', { Location: 'http://yoursite.com/four' });
-        miniget('http://yoursite.com/one', (err) => {
+        let scope = nock('http://yoursite.com')
+          .get('/first-request')
+          .reply(302, '', { Location: 'http://yoursite.com/redirect-1' })
+          .get('/redirect-1')
+          .reply(302, '', { Location: 'http://yoursite.com/redirect-2' })
+          .get('/redirect-2')
+          .reply(302, '', { Location: 'http://yoursite.com/redirect-3' });
+        miniget('http://yoursite.com/first-request', (err) => {
           assert.ok(err);
           scope.done();
           assert.equal(err.message, 'Too many redirects');
@@ -203,7 +237,7 @@ describe('Make a request', () => {
       it('Response does not give any more data', (done) => {
         let scope = nock('http://www.google1.com')
           .get('/one')
-          .delayBody(500)
+          .delayBody(100)
           .reply(200, '<html></html>');
         let stream = miniget('http://www.google1.com/one');
         stream.on('end', () => {
