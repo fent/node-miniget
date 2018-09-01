@@ -13,7 +13,7 @@ describe('Make a request', () => {
 
   describe('with callback', () => {
     it('Gives contents of page', (done) => {
-      let scope = nock('http://website.com')
+      const scope = nock('http://website.com')
         .get('/path')
         .replyWithFile(200, __filename);
       miniget('http://website.com/path', (err, res, body) => {
@@ -27,7 +27,7 @@ describe('Make a request', () => {
 
     describe('with options', () => {
       it('Makes request with options', (done) => {
-        let scope = nock('http://website.com', {
+        const scope = nock('http://website.com', {
           reqheaders: { 'User-Agent': 'miniget' },
         })
           .get('/path')
@@ -46,7 +46,7 @@ describe('Make a request', () => {
 
     describe('that errors', () => {
       it('Calls callback with error', (done) => {
-        let scope = nock('https://mysite.com')
+        const scope = nock('https://mysite.com')
           .get('/path')
           .replyWithError('ENOTFOUND');
         miniget('https://mysite.com/path', { maxRetries: 0 }, (err) => {
@@ -60,7 +60,7 @@ describe('Make a request', () => {
 
     describe('with bad path', () => {
       it('Calls callback with error', (done) => {
-        let scope = nock('https://mysite.com')
+        const scope = nock('https://mysite.com')
           .get('/badpath')
           .reply(404, 'not exists');
         miniget('https://mysite.com/badpath', (err) => {
@@ -74,16 +74,16 @@ describe('Make a request', () => {
 
   describe('that errors', () => {
     it('Emits error event', (done) => {
-      let clock = lolex.install();
+      const clock = lolex.install();
       after(clock.uninstall);
-      let scope = nock('https://mysite.com')
+      const scope = nock('https://mysite.com')
         .get('/path')
         .replyWithError('ENOTFOUND')
         .get('/path')
         .replyWithError('ENOTFOUND')
         .get('/path')
         .reply(500, 'oh no 3');
-      let stream = miniget('https://mysite.com/path');
+      const stream = miniget('https://mysite.com/path');
       stream.on('retry', (retryCount) => {
         clock.tick(retryCount * 100);
       });
@@ -96,10 +96,10 @@ describe('Make a request', () => {
 
     describe('With no retries', () => {
       it('Emits error event', (done) => {
-        let scope = nock('https://mysite.com')
+        const scope = nock('https://mysite.com')
           .get('/path')
           .replyWithError('oh no 1');
-        let stream = miniget('https://mysite.com/path', { maxRetries: 0 });
+        const stream = miniget('https://mysite.com/path', { maxRetries: 0 });
         stream.on('error', (err) => {
           assert.equal(err.message, 'oh no 1');
           scope.done();
@@ -111,10 +111,10 @@ describe('Make a request', () => {
 
   describe('using https protocol', () => {
     it('Uses the https module', (done) => {
-      let scope = nock('https://secureplace.net')
+      const scope = nock('https://secureplace.net')
         .get('/')
         .reply(200);
-      let stream = miniget('https://secureplace.net');
+      const stream = miniget('https://secureplace.net');
       stream.on('error', done);
       stream.on('end', () => {
         scope.done();
@@ -126,10 +126,10 @@ describe('Make a request', () => {
 
   describe('without callback', () => {
     it('Returns a stream', (done) => {
-      let scope = nock('http://website.com')
+      const scope = nock('http://website.com')
         .get('/path')
         .replyWithFile(200, __filename);
-      let stream = miniget('http://website.com/path');
+      const stream = miniget('http://website.com/path');
       stream.on('error', done);
       stream.on('response', (res) => {
         res.on('error', done);
@@ -164,7 +164,7 @@ describe('Make a request', () => {
 
   describe('that redirects', () => {
     it('Should download file after redirect', (done) => {
-      let scope = nock('http://mysite.com')
+      const scope = nock('http://mysite.com')
         .get('/pathy')
         .reply(302, '', { Location: 'http://mysite.com/redirected!' })
         .get('/redirected!')
@@ -180,7 +180,7 @@ describe('Make a request', () => {
 
     describe('too many times', () => {
       it('Emits error after 3 retries', (done) => {
-        let scope = nock('http://yoursite.com')
+        const scope = nock('http://yoursite.com')
           .get('/first-request')
           .reply(302, '', { Location: 'http://yoursite.com/redirect-1' })
           .get('/redirect-1')
@@ -199,7 +199,7 @@ describe('Make a request', () => {
 
   describe('using the `transform` option', () => {
     it('Calls `transform` function and customizes request', (done) => {
-      let scope = nock('http://other.com')
+      const scope = nock('http://other.com')
         .get('/http://supplies.com/boxes')
         .reply(200, '[  ]');
       miniget('http://supplies.com/boxes', {
@@ -239,13 +239,13 @@ describe('Make a request', () => {
     }
 
     it('Still downloads entire file', (done) => {
-      let scope = nock('http://mysite.com')
+      const scope = nock('http://mysite.com')
         .get('/myfile')
         .replyWithFile(200, file, {
           'content-length': filesize,
           'accept-ranges': 'bytes',
         });
-      let stream = miniget('http://mysite.com/myfile', { maxReconnects: 1 });
+      const stream = miniget('http://mysite.com/myfile', { maxReconnects: 1 });
       let req, res;
       stream.on('request', (a) => { req = a; });
       stream.on('response', (a) => { res = a; });
@@ -280,13 +280,13 @@ describe('Make a request', () => {
 
     describe('too many times', () => {
       it('Emits error', (done) => {
-        let scope = nock('http://mysite.com')
+        const scope = nock('http://mysite.com')
           .get('/myfile')
           .replyWithFile(200, file, {
             'content-length': filesize,
             'accept-ranges': 'bytes',
           });
-        let stream = miniget('http://mysite.com/myfile', {
+        const stream = miniget('http://mysite.com/myfile', {
           maxReconnects: 2,
           headers: { Range: 'bad' },
         });
@@ -331,14 +331,14 @@ describe('Make a request', () => {
     describe('with ranged request headers', () => {
       it('Downloads correct portion of file', (done) => {
         const start = Math.round(filesize / 3);
-        let scope = nock('http://mysite.com', { reqheaders: { Range: /bytes=/ } })
+        const scope = nock('http://mysite.com', { reqheaders: { Range: /bytes=/ } })
           .get('/myfile')
           .reply(206, () => fs.createReadStream(file, { start }), {
             'content-length': filesize - start,
             'content-range': `bytes ${start}-${filesize}/${filesize}`,
             'accept-ranges': 'bytes',
           });
-        let stream = miniget('http://mysite.com/myfile', {
+        const stream = miniget('http://mysite.com/myfile', {
           maxReconnects: 1,
           headers: { Range: `bytes=${start}-` },
         });
@@ -373,7 +373,7 @@ describe('Make a request', () => {
           done();
         });
       });
-    })
+    });
   });
 
   describe('that gets aborted', () => {
@@ -382,7 +382,7 @@ describe('Make a request', () => {
         nock('http://anime.me')
           .get('/')
           .reply(200, 'ooooaaaaaaaeeeee');
-        let stream = miniget('http://anime.me');
+        const stream = miniget('http://anime.me');
         stream.on('end', () => {
           throw new Error('`end` event should not be called');
         });
@@ -394,11 +394,11 @@ describe('Make a request', () => {
 
     describe('after getting response but before end', () => {
       it('Response does not give any more data', (done) => {
-        let scope = nock('http://www.google1.com')
+        const scope = nock('http://www.google1.com')
           .get('/one')
           .delayBody(100)
           .reply(200, '<html></html>');
-        let stream = miniget('http://www.google1.com/one');
+        const stream = miniget('http://www.google1.com/one');
         stream.on('end', () => {
           throw new Error('`end` event should not be called');
         });
