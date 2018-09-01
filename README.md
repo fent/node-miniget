@@ -1,6 +1,6 @@
 # node-miniget
 
-A small http(s) GET library with only redirects, retries, concatenating, streaming, and no dependencies. This keeps filesize small for potential browser use.
+A small http(s) GET library with redirects, retries, reconnects, concatenating or streaming, and no dependencies. This keeps filesize small for potential browser use.
 
 [![Build Status](https://secure.travis-ci.org/fent/node-miniget.svg)](http://travis-ci.org/fent/node-miniget)
 [![Dependency Status](https://david-dm.org/fent/node-miniget.svg)](https://david-dm.org/fent/node-miniget)
@@ -35,6 +35,7 @@ Makes a GET request. `options` can have any properties from the [`http.request()
 
 * `maxRedirects` - Default is `2`.
 * `maxRetries` - Number of times to retry the request if there is a 500 or connection error. Default is `1`.
+* `maxReconnects` - During a big download, if there is a disconnect, miniget can try to reconnect and continue the download where it left off. Defaults to `0`.
 * `backoff` - An object with `inc` and `max` used to calculate how long to wait to retry a request. Defaults to `{ inc: 100, max: 10000 }`.
 * `highWaterMark` - Amount of data to buffer when in stream mode.
 * `transform` - Use this to add additional features. Called with the object that `http.get()` or `https.get()` would be called with. Must return a transformed object.

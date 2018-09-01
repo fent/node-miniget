@@ -1,3 +1,5 @@
+const fs      = require('fs');
+const path    = require('path');
 const assert  = require('assert');
 const nock    = require('nock');
 const lolex   = require('lolex');
@@ -217,6 +219,163 @@ describe('Make a request', () => {
     });
   });
 
+  describe('that disconnects before end', () => {
+    const file = path.resolve(__dirname, 'video.flv');
+    let filesize, clock;
+    before((done) => {
+      fs.stat(file, (err, stat) => {
+        if (err) return done(err);
+        filesize = stat.size;
+        done();
+      });
+      clock = lolex.install();
+    });
+    after(() => { clock.uninstall(); });
+
+    function destroy(req, res) {
+      req.abort();
+      res.unpipe();
+      res.emit('end');
+    }
+
+    it('Still downloads entire file', (done) => {
+      let scope = nock('http://mysite.com')
+        .get('/myfile')
+        .replyWithFile(200, file, {
+          'content-length': filesize,
+          'accept-ranges': 'bytes',
+        });
+      let stream = miniget('http://mysite.com/myfile', { maxReconnects: 1 });
+      let req, res;
+      stream.on('request', (a) => { req = a; });
+      stream.on('response', (a) => { res = a; });
+      let reconnects = 0;
+      stream.on('reconnect', () => {
+        reconnects++;
+        clock.tick(100);
+      });
+      let downloaded = 0, destroyed = false;
+      stream.on('data', (chunk) => {
+        downloaded += chunk.length;
+        if (!destroyed && downloaded / filesize >= 0.3) {
+          destroyed = true;
+          scope.get('/myfile')
+            .reply(206, () => fs.createReadStream(file, { start: downloaded }), {
+              'content-range': `bytes ${downloaded}-${filesize}/${filesize}`,
+              'content-length': filesize - downloaded,
+              'accept-ranges': 'bytes',
+            });
+          destroy(req, res);
+        }
+      });
+      stream.on('error', done);
+      stream.on('end', () => {
+        scope.done();
+        assert.ok(destroyed);
+        assert.equal(reconnects, 1);
+        assert.equal(downloaded, filesize);
+        done();
+      });
+    });
+
+    describe('too many times', () => {
+      it('Emits error', (done) => {
+        let scope = nock('http://mysite.com')
+          .get('/myfile')
+          .replyWithFile(200, file, {
+            'content-length': filesize,
+            'accept-ranges': 'bytes',
+          });
+        let stream = miniget('http://mysite.com/myfile', {
+          maxReconnects: 2,
+          headers: { Range: 'bad' },
+        });
+        let req, res;
+        stream.on('request', (a) => { req = a; });
+        stream.on('response', (a) => { res = a; });
+        let reconnects = 0;
+        stream.on('reconnect', () => {
+          reconnects++;
+          clock.tick(100);
+        });
+        let downloaded = 0, destroyed = false;
+        stream.on('data', (chunk) => {
+          downloaded += chunk.length;
+          if (downloaded / filesize >= 0.3) {
+            destroyed = true;
+            if (reconnects < 2) {
+              scope.get('/myfile')
+                .reply(206, () => fs.createReadStream(file, { start: downloaded }), {
+                  'content-range': `bytes ${downloaded}-${filesize}/${filesize}`,
+                  'content-length': filesize - downloaded,
+                  'accept-ranges': 'bytes',
+                });
+            }
+            destroy(req, res);
+          }
+        });
+        stream.on('error', (err) => {
+          assert.equal(err.message, 'socket hang up');
+          scope.done();
+          assert.equal(reconnects, 2);
+          assert.ok(destroyed);
+          assert.notEqual(downloaded, filesize);
+          done();
+        });
+        stream.on('end', () => {
+          throw new Error('should not end');
+        });
+      });
+    });
+
+    describe('with ranged request headers', () => {
+      it('Downloads correct portion of file', (done) => {
+        const start = Math.round(filesize / 3);
+        let scope = nock('http://mysite.com', { reqheaders: { Range: /bytes=/ } })
+          .get('/myfile')
+          .reply(206, () => fs.createReadStream(file, { start }), {
+            'content-length': filesize - start,
+            'content-range': `bytes ${start}-${filesize}/${filesize}`,
+            'accept-ranges': 'bytes',
+          });
+        let stream = miniget('http://mysite.com/myfile', {
+          maxReconnects: 1,
+          headers: { Range: `bytes=${start}-` },
+        });
+        let req, res;
+        stream.on('request', (a) => { req = a; });
+        stream.on('response', (a) => { res = a; });
+        let reconnects = 0;
+        stream.on('reconnect', () => {
+          reconnects++;
+          clock.tick(100);
+        });
+        let downloaded = start, destroyed = false;
+        stream.on('data', (chunk) => {
+          downloaded += chunk.length;
+          if (!destroyed && downloaded / filesize >= 0.5) {
+            destroyed = true;
+            scope.get('/myfile')
+              .reply(206, () => fs.createReadStream(file, { start: downloaded }), {
+                'content-range': `bytes ${downloaded}-${filesize}/${filesize}`,
+                'content-length': filesize - downloaded,
+                'accept-ranges': 'bytes',
+              });
+            destroy(req, res);
+          }
+        });
+        stream.on('error', done);
+        stream.on('end', () => {
+          scope.done();
+          assert.ok(destroyed);
+          assert.equal(reconnects, 1);
+          assert.equal(downloaded, filesize);
+          done();
+        });
+      });
+    })
+  });
+
   describe('that gets aborted', () => {
     describe('immediately', () => {
       it('Does not call callback or end stream', (done) => {
@@ -225,7 +384,7 @@ describe('Make a request', () => {
           .reply(200, 'ooooaaaaaaaeeeee');
         let stream = miniget('http://anime.me');
         stream.on('end', () => {
-          throw Error('`end` event should not be called');
+          throw new Error('`end` event should not be called');
         });
         stream.on('abort', done);
         stream.on('error', done);
@@ -241,12 +400,12 @@ describe('Make a request', () => {
           .reply(200, '<html></html>');
         let stream = miniget('http://www.google1.com/one');
         stream.on('end', () => {
-          throw Error('`end` event should not be called');
+          throw new Error('`end` event should not be called');
         });
         let abortCalled = false;
         stream.on('abort', () => { abortCalled = true; });
         stream.on('data', () => {
-          throw Error('Should not read any data');
+          throw new Error('Should not read any data');
         });
         stream.on('error', (err) => {
           scope.done();
