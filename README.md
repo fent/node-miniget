@@ -42,7 +42,24 @@ Makes a GET request. `options` can have any properties from the [`http.request()
 
 If `callback` is given, will concatenate the response, and call `callback` with a possible error, and the response body.
 
-Miniget returns a readable stream if `callback` is not given, errors will then be emitted on the stream. Returned stream also contains an `.abort()` method.
+Miniget returns a readable stream if `callback` is not given, errors will then be emitted on the stream. Returned stream also contains an `.abort()` method, and can emit the following events.
+
+#### Event: redirect
+* `string` - URL redirected to.
+
+Emitted when the request was redirected with a redirection status code.
+
+#### Event: retry
+* `number` - Number of retry.
+* `Error` - Request or status code error.
+
+Emitted when the request fails, or the response has a status code >= 500.
+
+#### Event: reconnect
+* `number` - Number of reconnect.
+* `Error` - Request or response error.
+
+Emitted when the request or response fails after download has started.
 
 
 # Install
