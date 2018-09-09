@@ -1,9 +1,11 @@
-const fs      = require('fs');
-const path    = require('path');
-const assert  = require('assert');
-const nock    = require('nock');
-const lolex   = require('lolex');
-const miniget = require('../lib/index');
+const fs          = require('fs');
+const path        = require('path');
+const zlib        = require('zlib');
+const assert      = require('assert');
+const nock        = require('nock');
+const lolex       = require('lolex');
+const streamEqual = require('stream-equal');
+const miniget     = require('../lib/index');
 
 
 describe('Make a request', () => {
@@ -415,6 +417,121 @@ describe('Make a request', () => {
         });
         stream.on('response', () => {
           stream.abort();
+        });
+      });
+    });
+  });
+
+  describe('with `acceptEncoding` option', () => {
+    const file = path.resolve(__dirname, 'video.flv');
+    let filesize;
+    before((done) => {
+      fs.stat(file, (err, stat) => {
+        if (err) return done(err);
+        filesize = stat.size;
+        done();
+      });
+    });
+
+    it('Decompresses stream', (done) => {
+      const res = fs.createReadStream(file).pipe(new zlib.createGzip());
+      const scope = nock('http://yoursite.com', {
+        reqheaders: { 'Accept-Encoding': 'gzip' }
+      })
+        .get('/compressedfile')
+        .reply(200, res, {
+          'content-length': filesize,
+          'content-encoding': 'gzip',
+        });
+      const stream = miniget('http://yoursite.com/compressedfile', {
+        acceptEncoding: { gzip: () => new zlib.createGunzip() }
+      });
+      streamEqual(fs.createReadStream(file), stream, (err, equal) => {
+        assert.ifError(err);
+        assert.ok(equal);
+        scope.done();
+        done();
+      });
+    });
+
+    describe('compressed twice', () => {
+      it('Decompresses stream', (done) => {
+        const res = fs.createReadStream(file)
+          .pipe(zlib.createGzip())
+          .pipe(zlib.createDeflate());
+        const scope = nock('http://yoursite.com', {
+          reqheaders: { 'Accept-Encoding': 'gzip, deflate' }
+        })
+          .get('/compressedfile')
+          .reply(200, res, {
+            'content-length': filesize,
+            'content-encoding': 'gzip, deflate',
+          });
+        const stream = miniget('http://yoursite.com/compressedfile', {
+          acceptEncoding: {
+            gzip: () => zlib.createGunzip(),
+            deflate: () => zlib.createInflate(),
+          }
+        });
+        streamEqual(fs.createReadStream(file), stream, (err, equal) => {
+          assert.ifError(err);
+          assert.ok(equal);
+          scope.done();
+          done();
+        });
+      });
+    });
+
+    describe('compressed incorrectly', () => {
+      it('Emits compression error', (done) => {
+        const res = fs.createReadStream(file)
+          .pipe(zlib.createGzip())
+          .pipe(zlib.createDeflate());
+        const scope = nock('http://yoursite.com', {
+          reqheaders: { 'Accept-Encoding': 'gzip, deflate' }
+        })
+          .get('/compressedfile')
+          .reply(200, res, {
+            'content-length': filesize,
+            'content-encoding': 'deflate, gzip',
+          });
+        const stream = miniget('http://yoursite.com/compressedfile', {
+          acceptEncoding: {
+            gzip: () => zlib.createGunzip(),
+            deflate: () => zlib.createInflate(),
+          }
+        });
+        streamEqual(fs.createReadStream(file), stream, (err) => {
+          assert.ok(err);
+          assert.equal(err.message, 'incorrect header check');
+          scope.done();
+          done();
+        });
+      });
+    });
+
+    describe('without matching decompressing stream', () => {
+      it('Gets original compressed stream', (done) => {
+        const res = fs.createReadStream(file).pipe(zlib.createGzip());
+        const scope = nock('http://yoursite.com', {
+          reqheaders: { 'Accept-Encoding': 'deflate' }
+        })
+          .get('/compressedfile')
+          .reply(200, res, {
+            'content-length': filesize,
+            'content-encoding': 'gzip',
+          });
+        const stream = miniget('http://yoursite.com/compressedfile', {
+          acceptEncoding: {
+            deflate: () => zlib.createInflate(),
+          }
+        });
+        const expected = fs.createReadStream(file).pipe(zlib.createGzip());
+        streamEqual(expected, stream, (err, equal) => {
+          assert.ifError(err);
+          assert.ok(equal);
+          scope.done();
+          done();
         });
       });
     });

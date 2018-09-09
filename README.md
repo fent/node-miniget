@@ -39,6 +39,11 @@ Makes a GET request. `options` can have any properties from the [`http.request()
 * `backoff` - An object with `inc` and `max` used to calculate how long to wait to retry a request. Defaults to `{ inc: 100, max: 10000 }`.
 * `highWaterMark` - Amount of data to buffer when in stream mode.
 * `transform` - Use this to add additional features. Called with the object that `http.get()` or `https.get()` would be called with. Must return a transformed object.
+* `acceptEncoding` - An object with encoding name as the key, and the value as a function that returns a decoding stream.
+  ```js
+  acceptEncoding: { gzip: () => require('zlip').createGunzip(stream) }
+  ```
+  Given encodings will be added to the `Accept-Encoding` header, and the response will be decoded if the server responds with encoded content.
 
 If `callback` is given, will concatenate the response, and call `callback` with a possible error, and the response body.
 
