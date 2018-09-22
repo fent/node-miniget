@@ -226,7 +226,7 @@ describe('Make a request', () => {
     let filesize, clock;
     before((done) => {
       fs.stat(file, (err, stat) => {
-        if (err) return done(err);
+        assert.ifError(err);
         filesize = stat.size;
         done();
       });
@@ -234,11 +234,11 @@ describe('Make a request', () => {
     });
     after(() => { clock.uninstall(); });
 
-    function destroy(req, res) {
+    const destroy = (req, res) => {
       req.abort();
       res.unpipe();
       res.emit('end');
-    }
+    };
 
     it('Still downloads entire file', (done) => {
       const scope = nock('http://mysite.com')
@@ -325,7 +325,7 @@ describe('Make a request', () => {
           done();
         });
         stream.on('end', () => {
-          throw new Error('should not end');
+          throw Error('should not end');
         });
       });
     });
@@ -386,7 +386,7 @@ describe('Make a request', () => {
           .reply(200, 'ooooaaaaaaaeeeee');
         const stream = miniget('http://anime.me');
         stream.on('end', () => {
-          throw new Error('`end` event should not be called');
+          throw Error('`end` event should not be called');
         });
         stream.on('abort', done);
         stream.on('error', done);
@@ -402,12 +402,12 @@ describe('Make a request', () => {
           .reply(200, '<html></html>');
         const stream = miniget('http://www.google1.com/one');
         stream.on('end', () => {
-          throw new Error('`end` event should not be called');
+          throw Error('`end` event should not be called');
         });
         let abortCalled = false;
         stream.on('abort', () => { abortCalled = true; });
         stream.on('data', () => {
-          throw new Error('Should not read any data');
+          throw Error('Should not read any data');
         });
         stream.on('error', (err) => {
           scope.done();
@@ -427,7 +427,7 @@ describe('Make a request', () => {
     let filesize;
     before((done) => {
       fs.stat(file, (err, stat) => {
-        if (err) return done(err);
+        assert.ifError(err);
         filesize = stat.size;
         done();
       });
