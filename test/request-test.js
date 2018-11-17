@@ -219,6 +219,23 @@ describe('Make a request', () => {
         done();
       });
     });
+    it('Calls `transform` function and customizes request with protocol changing', (done) => {
+      const scope = nock('http://that.com')
+        .get('/')
+        .reply(200, '[  ]');
+      miniget('https://that.com', {
+        transform: (parsed) => {
+          parsed.protocol = 'http:';
+          return parsed;
+        },
+      }, (err, res, body) => {
+        scope.done();
+        assert.ifError(err);
+        assert.equal(res.statusCode, 200);
+        assert.equal(body, '[  ]');
+        done();
+      });
+    });
   });
 
   describe('that disconnects before end', () => {
