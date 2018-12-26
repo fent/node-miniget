@@ -77,7 +77,7 @@ describe('Make a request', () => {
   describe('that errors', () => {
     it('Emits error event', (done) => {
       const clock = lolex.install();
-      after(clock.uninstall);
+      afterEach(clock.uninstall);
       const scope = nock('https://mysite.com')
         .get('/path')
         .replyWithError('ENOTFOUND')
@@ -86,6 +86,7 @@ describe('Make a request', () => {
         .get('/path')
         .reply(500, 'oh no 3');
       const stream = miniget('https://mysite.com/path');
+      stream.on('request', () => { clock.tick(1); });
       stream.on('retry', (retryCount) => {
         clock.tick(retryCount * 100);
       });
