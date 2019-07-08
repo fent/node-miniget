@@ -12,6 +12,9 @@ nock.disableNetConnect();
 
 describe('Make a request', () => {
   afterEach(() => { nock.cleanAll(); });
+  let clock;
+  beforeEach(() => clock = lolex.install());
+  afterEach(() => clock.uninstall);
 
   describe('with callback', () => {
     it('Gives contents of page', (done) => {
@@ -76,8 +79,6 @@ describe('Make a request', () => {
 
   describe('that errors', () => {
     it('Emits error event', (done) => {
-      const clock = lolex.install();
-      afterEach(clock.uninstall);
       const scope = nock('https://mysite.com')
         .get('/path')
         .replyWithError('ENOTFOUND')
@@ -241,16 +242,14 @@ describe('Make a request', () => {
 
   describe('that disconnects before end', () => {
     const file = path.resolve(__dirname, 'video.flv');
-    let filesize, clock;
+    let filesize;
     before((done) => {
       fs.stat(file, (err, stat) => {
         assert.ifError(err);
         filesize = stat.size;
         done();
       });
-      clock = lolex.install();
     });
-    after(() => { clock.uninstall(); });
 
     const destroy = (req, res) => {
       req.abort();
@@ -337,7 +336,7 @@ describe('Make a request', () => {
         });
       });
 
-      describe('without reconnects', () => {
+      describe('without enough reconnects', () => {
         it('Downloads partial file', (done) => {
           const scope = nock('http://mysite.com')
             .get('/yourfile')
@@ -346,18 +345,28 @@ describe('Make a request', () => {
               'accept-ranges': 'bytes',
             });
           const stream = miniget('http://mysite.com/yourfile', {
-            maxReconnects: 0,
+            maxReconnects: 1,
             maxRetries: 0,
           });
           let res;
-          stream.on('response', (a) => { res = a; });
+          stream.on('response', (a) => {
+            console.log('res');
+            res = a; });
+          let reconnects = 0;
           stream.on('reconnect', () => {
-            throw Error('Should not reconnect');
+            reconnects++;
+            scope.get('/yourfile')
+              .reply(206, fs.createReadStream(file, { start: downloaded }), {
+                'content-range': `bytes ${downloaded}-${filesize}/${filesize}`,
+                'content-length': filesize - downloaded,
+                'accept-ranges': 'bytes',
+              });
+            clock.tick(100);
           });
           let downloaded = 0, destroyed = false;
           stream.on('data', (chunk) => {
             downloaded += chunk.length;
-            if (!destroyed && downloaded / filesize >= 0.3) {
+            if (downloaded / filesize >= 0.3) {
               destroyed = true;
               res.emit('end');
             }
@@ -366,6 +375,7 @@ describe('Make a request', () => {
           stream.on('end', () => {
             scope.done();
             assert.ok(destroyed);
+            assert.equal(reconnects, 1);
             assert.notEqual(downloaded, filesize);
             done();
           });
