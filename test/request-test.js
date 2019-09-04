@@ -350,7 +350,6 @@ describe('Make a request', () => {
           });
           let res;
           stream.on('response', (a) => {
-            console.log('res');
             res = a; });
           let reconnects = 0;
           stream.on('reconnect', () => {
