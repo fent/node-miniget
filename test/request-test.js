@@ -173,12 +173,15 @@ describe('Make a request', () => {
         .reply(302, '', { Location: 'http://mysite.com/redirected!' })
         .get('/redirected!')
         .reply(200, 'Helloo!');
-      miniget('http://mysite.com/pathy', (err, res, body) => {
-        assert.ifError(err);
+      const stream = miniget('http://mysite.com/pathy');
+      stream.on('error', done);
+      stream.on('data', (body) => {
         scope.done();
-        assert.equal(res.statusCode, 200);
         assert.equal(body, 'Helloo!');
         done();
+      });
+      stream.on('redirect', () => {
+        clock.tick(1);
       });
     });
 
@@ -191,11 +194,80 @@ describe('Make a request', () => {
           .reply(302, '', { Location: 'http://yoursite.com/redirect-2' })
           .get('/redirect-2')
           .reply(302, '', { Location: 'http://yoursite.com/redirect-3' });
-        miniget('http://yoursite.com/first-request', (err) => {
+        const stream = miniget('http://yoursite.com/first-request');
+        stream.on('error', (err) => {
           assert.ok(err);
           scope.done();
           assert.equal(err.message, 'Too many redirects');
           done();
+        });
+        stream.on('redirect', () => {
+          clock.tick(1);
+        });
+      });
+    });
+
+    describe('with `retry-after` header', () => {
+      it('Redirects after given time', (done) => {
+        const scope = nock('http://mysite2.com')
+          .get('/pathos/to/resource')
+          .reply(301, '', {
+            Location: 'http://mysite2.com/newpath/to/source',
+            'Retry-After': '300',
+          })
+          .get('/newpath/to/source')
+          .reply(200, 'hi world!!');
+        const stream = miniget('http://mysite2.com/pathos/to/resource');
+        stream.on('error', done);
+        stream.on('data', (body) => {
+          scope.done();
+          assert.equal(body, 'hi world!!');
+          done();
+        });
+        stream.on('redirect', () => {
+          clock.tick(300 * 1000);
+        });
+      });
+    });
+  });
+
+  describe('that gets api limited', () => {
+    it('Retries the request after some time', (done) => {
+      const scope = nock('https://mysite.io')
+        .get('/api/v1/data')
+        .reply(429, 'slow down')
+        .get('/api/v1/data')
+        .reply(200, 'where are u');
+      const stream = miniget('https://mysite.io/api/v1/data');
+      stream.on('error', done);
+      stream.on('data', (data) => {
+        scope.done();
+        assert.equal(data, 'where are u');
+        done();
+      });
+      stream.on('retry', () => {
+        clock.tick(1000);
+      });
+    });
+    describe('with `retry-after` header', () => {
+      it('Retries after given time', (done) => {
+        const scope = nock('https://mysite.io')
+          .get('/api/v1/dota')
+          .reply(429, 'slow down', { 'Retry-After': '3600' })
+          .get('/api/v1/dota')
+          .reply(200, 'where are u');
+        const stream = miniget('https://mysite.io/api/v1/dota');
+        stream.on('error', done);
+        stream.on('data', (data) => {
+          scope.done();
+          assert.equal(data, 'where are u');
+          done();
+        });
+        stream.on('retry', () => {
+          // Test that ticking by a bit does not retry the request.
+          clock.tick(1000);
+          assert.ok(!scope.isDone());
+          clock.tick(3600 * 1000);
         });
       });
     });
