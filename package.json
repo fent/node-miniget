@@ -16,8 +16,10 @@
   "author": "fent (https://github.com/fent)",
   "main": "./lib/index.js",
   "files": [
-    "lib"
+    "lib",
+    "index.d.ts"
   ],
+  "types": "index.d.ts",
   "scripts": {
     "test": "istanbul cover node_modules/.bin/_mocha -- test/*-test.js"
   },
