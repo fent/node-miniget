@@ -28,7 +28,7 @@
     "istanbul": "^0.4.5",
     "lolex": "^4.0.1",
     "longjohn": "^0.2.12",
-    "mocha": "^6.0.0",
+    "mocha": "^6.2.0",
     "nock": "^11.1.0",
     "stream-equal": "^1.1.1"
   },
