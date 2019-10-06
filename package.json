@@ -21,7 +21,7 @@
   ],
   "types": "index.d.ts",
   "scripts": {
-    "test": "istanbul cover node_modules/.bin/_mocha -- test/*-test.js"
+    "test": "nyc --reporter=lcov --reporter=text-summary mocha -- test/*-test.js"
   },
   "dependencies": {},
   "devDependencies": {
@@ -30,6 +30,7 @@
     "longjohn": "^0.2.12",
     "mocha": "^6.2.0",
     "nock": "^11.1.0",
+    "nyc": "^14.1.1",
     "stream-equal": "^1.1.1"
   },
   "engines": {
