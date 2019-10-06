@@ -1,18 +1,20 @@
-const fs          = require('fs');
-const path        = require('path');
-const zlib        = require('zlib');
-const assert      = require('assert');
-const nock        = require('nock');
-const lolex       = require('lolex');
-const streamEqual = require('stream-equal');
-const miniget     = require('../lib/index');
-require('longjohn');
+import fs from 'fs';
+import path from 'path';
+import zlib from 'zlib';
+import assert from 'assert';
+import nock from 'nock';
+import lolex from 'lolex';
+import streamEqual from 'stream-equal';
+import miniget from '../dist';
+import { Transform } from 'stream';
+import { IncomingMessage, ClientRequest } from 'http';
+import 'longjohn';
 
 nock.disableNetConnect();
 
 describe('Make a request', () => {
   afterEach(() => { nock.cleanAll(); });
-  let clock;
+  let clock: lolex.InstalledClock;
   beforeEach(() => clock = lolex.install());
   afterEach(() => clock.uninstall());
 
@@ -282,7 +284,7 @@ describe('Make a request', () => {
         transform: (parsed) => {
           return {
             host: 'other.com',
-            path: '/' + parsed.href,
+            path: `/${parsed.protocol}//${parsed.host}${parsed.path}`,
           };
         },
       }, (err, res, body) => {
@@ -314,7 +316,7 @@ describe('Make a request', () => {
 
   describe('that disconnects before end', () => {
     const file = path.resolve(__dirname, 'video.flv');
-    let filesize;
+    let filesize: number;
     before((done) => {
       fs.stat(file, (err, stat) => {
         assert.ifError(err);
@@ -323,7 +325,7 @@ describe('Make a request', () => {
       });
     });
 
-    const destroy = (req, res) => {
+    const destroy = (req: ClientRequest, res: IncomingMessage): void => {
       req.abort();
       res.unpipe();
     };
@@ -332,11 +334,11 @@ describe('Make a request', () => {
       const scope = nock('http://mysite.com')
         .get('/myfile')
         .replyWithFile(200, file, {
-          'content-length': filesize,
+          'content-length': filesize + '',
           'accept-ranges': 'bytes',
         });
       const stream = miniget('http://mysite.com/myfile', { maxReconnects: 1 });
-      let req, res;
+      let req: ClientRequest, res: IncomingMessage;
       stream.on('request', (a) => { req = a; });
       stream.on('response', (a) => { res = a; });
       let reconnects = 0;
@@ -352,7 +354,7 @@ describe('Make a request', () => {
           scope.get('/myfile')
             .reply(206, () => fs.createReadStream(file, { start: downloaded }), {
               'content-range': `bytes ${downloaded}-${filesize}/${filesize}`,
-              'content-length': filesize - downloaded,
+              'content-length': `${(filesize - downloaded)}`,
               'accept-ranges': 'bytes',
             });
           destroy(req, res);
@@ -373,11 +375,11 @@ describe('Make a request', () => {
         const scope = nock('http://mysite.com')
           .get('/myfile')
           .replyWithFile(200, file, {
-            'content-length': filesize,
+            'content-length': filesize + '',
             'accept-ranges': 'bytes',
           });
         const stream = miniget('http://mysite.com/myfile', { maxReconnects: 1 });
-        let res;
+        let res: IncomingMessage;
         stream.on('response', (a) => { res = a; });
         let reconnects = 0;
         stream.on('reconnect', () => {
@@ -392,7 +394,7 @@ describe('Make a request', () => {
             scope.get('/myfile')
               .reply(206, () => fs.createReadStream(file, { start: downloaded }), {
                 'content-range': `bytes ${downloaded}-${filesize}/${filesize}`,
-                'content-length': filesize - downloaded,
+                'content-length': `${filesize - downloaded}`,
                 'accept-ranges': 'bytes',
               });
             res.emit('end');
@@ -413,14 +415,14 @@ describe('Make a request', () => {
           const scope = nock('http://mysite.com')
             .get('/yourfile')
             .replyWithFile(200, file, {
-              'content-length': filesize,
+              'content-length': filesize + '',
               'accept-ranges': 'bytes',
             });
           const stream = miniget('http://mysite.com/yourfile', {
             maxReconnects: 1,
             maxRetries: 0,
           });
-          let res;
+          let res: IncomingMessage;
           stream.on('response', (a) => {
             res = a; });
           let reconnects = 0;
@@ -429,7 +431,7 @@ describe('Make a request', () => {
             scope.get('/yourfile')
               .reply(206, fs.createReadStream(file, { start: downloaded }), {
                 'content-range': `bytes ${downloaded}-${filesize}/${filesize}`,
-                'content-length': filesize - downloaded,
+                'content-length': `${filesize - downloaded}`,
                 'accept-ranges': 'bytes',
               });
             clock.tick(100);
@@ -459,14 +461,14 @@ describe('Make a request', () => {
         const scope = nock('http://mysite.com')
           .get('/myfile')
           .replyWithFile(200, file, {
-            'content-length': filesize,
+            'content-length': filesize + '',
             'accept-ranges': 'bytes',
           });
         const stream = miniget('http://mysite.com/myfile', {
           maxReconnects: 2,
           headers: { Range: 'bad' },
         });
-        let req, res;
+        let req: ClientRequest, res: IncomingMessage;
         stream.on('request', (a) => { req = a; });
         stream.on('response', (a) => { res = a; });
         let reconnects = 0;
@@ -483,7 +485,7 @@ describe('Make a request', () => {
               scope.get('/myfile')
                 .reply(206, () => fs.createReadStream(file, { start: downloaded }), {
                   'content-range': `bytes ${downloaded}-${filesize}/${filesize}`,
-                  'content-length': filesize - downloaded,
+                  'content-length': `${filesize - downloaded}`,
                   'accept-ranges': 'bytes',
                 });
             }
@@ -511,7 +513,7 @@ describe('Make a request', () => {
         const scope = nock('http://mysite.com', { reqheaders: { Range: /bytes=/ } })
           .get('/myfile')
           .reply(206, () => fs.createReadStream(file, { start }), {
-            'content-length': filesize - start,
+            'content-length': `${filesize - start}`,
             'content-range': `bytes ${start}-${filesize}/${filesize}`,
             'accept-ranges': 'bytes',
           });
@@ -519,7 +521,7 @@ describe('Make a request', () => {
           maxReconnects: 1,
           headers: { Range: `bytes=${start}-` },
         });
-        let req, res;
+        let req: ClientRequest, res: IncomingMessage;
         stream.on('request', (a) => { req = a; });
         stream.on('response', (a) => { res = a; });
         let reconnects = 0;
@@ -535,7 +537,7 @@ describe('Make a request', () => {
             scope.get('/myfile')
               .reply(206, () => fs.createReadStream(file, { start: downloaded }), {
                 'content-range': `bytes ${downloaded}-${filesize}/${filesize}`,
-                'content-length': filesize - downloaded,
+                'content-length': `${filesize - downloaded}`,
                 'accept-ranges': 'bytes',
               });
             destroy(req, res);
@@ -599,7 +601,7 @@ describe('Make a request', () => {
 
   describe('with `acceptEncoding` option', () => {
     const file = path.resolve(__dirname, 'video.flv');
-    let filesize;
+    let filesize: number;
     before((done) => {
       fs.stat(file, (err, stat) => {
         assert.ifError(err);
@@ -609,17 +611,17 @@ describe('Make a request', () => {
     });
 
     it('Decompresses stream', (done) => {
-      const res = fs.createReadStream(file).pipe(new zlib.createGzip());
+      const res = fs.createReadStream(file).pipe(zlib.createGzip());
       const scope = nock('http://yoursite.com', {
         reqheaders: { 'Accept-Encoding': 'gzip' }
       })
         .get('/compressedfile')
         .reply(200, res, {
-          'content-length': filesize,
+          'content-length': filesize + '',
           'content-encoding': 'gzip',
         });
       const stream = miniget('http://yoursite.com/compressedfile', {
-        acceptEncoding: { gzip: () => new zlib.createGunzip() },
+        acceptEncoding: { gzip: (): Transform => zlib.createGunzip() },
         maxRetries: 0,
       });
       streamEqual(fs.createReadStream(file), stream, (err, equal) => {
@@ -636,17 +638,17 @@ describe('Make a request', () => {
           .pipe(zlib.createGzip())
           .pipe(zlib.createDeflate());
         const scope = nock('http://yoursite.com', {
-          reqheaders: { 'Accept-Encoding': 'gzip, deflate' }
+          reqheaders: {}
         })
           .get('/compressedfile')
           .reply(200, res, {
-            'content-length': filesize,
+            'content-length': filesize + '',
             'content-encoding': 'gzip, deflate',
           });
         const stream = miniget('http://yoursite.com/compressedfile', {
           acceptEncoding: {
-            gzip: () => zlib.createGunzip(),
-            deflate: () => zlib.createInflate(),
+            gzip: (): Transform => zlib.createGunzip(),
+            deflate: (): Transform => zlib.createInflate(),
           },
           maxRetries: 0,
         });
@@ -669,14 +671,14 @@ describe('Make a request', () => {
         })
           .get('/compressedfile')
           .reply(200, res, {
-            'content-length': filesize,
+            'content-length': filesize + '',
             'content-encoding': 'deflate, gzip',
           });
         const stream = miniget('http://yoursite.com/compressedfile', {
           maxRetries: 0,
           acceptEncoding: {
-            gzip: () => zlib.createGunzip(),
-            deflate: () => zlib.createInflate(),
+            gzip: (): Transform => zlib.createGunzip(),
+            deflate: (): Transform => zlib.createInflate(),
           }
         });
         streamEqual(fs.createReadStream(file), stream, (err) => {
@@ -696,12 +698,12 @@ describe('Make a request', () => {
         })
           .get('/compressedfile')
           .reply(200, res, {
-            'content-length': filesize,
+            'content-length': filesize + '',
             'content-encoding': 'gzip',
           });
         const stream = miniget('http://yoursite.com/compressedfile', {
           acceptEncoding: {
-            deflate: () => zlib.createInflate(),
+            deflate: (): Transform => zlib.createInflate(),
           },
           maxRetries: 0,
         });
