@@ -26,7 +26,7 @@
   "dependencies": {},
   "devDependencies": {
     "istanbul": "^0.4.5",
-    "lolex": "^4.0.1",
+    "lolex": "^5.0.0",
     "longjohn": "^0.2.12",
     "mocha": "^6.2.0",
     "nock": "^11.1.0",
