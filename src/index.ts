@@ -18,6 +18,7 @@ namespace Miniget {
     maxRedirects?: number;
     maxRetries?: number;
     maxReconnects?: number;
+    bypassRateLimit?: boolean | number;
     backoff?: { inc: number; max: number };
     highWaterMark?: number;
     transform?: (parsedUrl: RequestOptions) => RequestOptions;
@@ -37,6 +38,7 @@ const defaults: Miniget.Options = {
   maxRedirects: 2,
   maxRetries: 2,
   maxReconnects: 0,
+  bypassRateLimit: false,
   backoff: { inc: 100, max: 10000 },
 };
 type Callback = (error: Error, message: IncomingMessage, body: string) => void;
@@ -59,6 +61,7 @@ function Miniget(url: string, options?: Miniget.Options | Callback, callback?: C
   let retries = 0;
   let retryTimeout: NodeJS.Timer;
   let reconnects = 0;
+  let mb = 1000000;
   let contentLength: number;
   let acceptRanges = false;
   let rangeStart = 0, rangeEnd: number;
@@ -70,6 +73,14 @@ function Miniget(url: string, options?: Miniget.Options | Callback, callback?: C
     if (r) {
       rangeStart = parseInt(r[1], 10);
       rangeEnd = parseInt(r[2], 10);
+    }
+  } else if (opts.bypassRateLimit) {
+    if (typeof opts.bypassRateLimit === 'number' && opts.bypassRateLimit > 0) {
+    rangeStart = parseInt(String(0), 10);
+    rangeEnd = parseInt(String(mb * opts.bypassRateLimit), 10);
+    } else if (opts.bypassRateLimit === true) {
+      rangeStart = parseInt(String(0), 10);
+      rangeEnd = parseInt(String(mb), 10);
     }
   }
 
@@ -99,6 +110,9 @@ function Miniget(url: string, options?: Miniget.Options | Callback, callback?: C
         retryTimeout = setTimeout(doDownload, ms);
         stream.emit('reconnect', reconnects, retryOptions.err);
         return true;
+      } else if (opts.bypassRateLimit && (contentLength > rangeEnd)) {
+        doDownload()
+        return true;
       }
     } else if ((!retryOptions.statusCode ||
       retryOptions.err && retryOptions.err.message === 'ENOTFOUND') &&
@@ -118,6 +132,16 @@ function Miniget(url: string, options?: Miniget.Options | Callback, callback?: C
     }
   };
 
+  const doSampleRequest = (callback: Function) => {
+    let parsed: RequestOptions = urlParse(url);
+    let httpLib = httpLibs[parsed.protocol];
+    if (!httpLib) {
+        stream.emit('error', Error('Invalid URL: ' + url));
+    }
+    Object.assign(parsed, opts)
+    httpLib.get(parsed, (res) => {callback(res)});
+};
+
   const doDownload = (): void => {
     if (aborted) { return; }
     let parsed: RequestOptions = urlParse(url);
@@ -129,11 +153,20 @@ function Miniget(url: string, options?: Miniget.Options | Callback, callback?: C
 
     Object.assign(parsed, opts);
     if (acceptRanges && downloaded > 0) {
-      let start = downloaded + rangeStart;
-      let end = rangeEnd || '';
-      parsed.headers = Object.assign({}, parsed.headers, {
-        Range: `bytes=${start}-${end}`
-      });
+      if (opts.bypassRateLimit) {
+        let end = rangeEnd += typeof opts.bypassRateLimit === 'number' ? mb * opts.bypassRateLimit : mb * 10;
+        let start = rangeStart
+        parsed.headers = Object.assign({}, parsed.headers, {
+            Range: `bytes=${start}-${end}`
+        });
+        rangeStart = rangeEnd + 1;
+    } else {
+        let start = downloaded + rangeStart;
+        let end = rangeEnd || '';
+        parsed.headers = Object.assign({}, parsed.headers, {
+            Range: `bytes=${start}-${end}`
+        });
+    }
     }
 
     if (opts.transform) {
@@ -197,19 +230,32 @@ function Miniget(url: string, options?: Miniget.Options | Callback, callback?: C
         }
       }
       if (!contentLength) {
-        contentLength = parseInt(res.headers['content-length'] + '', 10);
-        acceptRanges = res.headers['accept-ranges'] === 'bytes' &&
-          contentLength > 0 && opts.maxReconnects > 0;
+          if (opts.bypassRateLimit) {
+            doSampleRequest((res: IncomingMessage) => {
+              contentLength = parseInt(res.headers['content-length'] + '', 10)
+              acceptRanges = res.headers['accept-ranges'] === 'bytes' &&
+              contentLength > 0 && opts.maxReconnects > 0;
+              stream.emit('response', res);
+              })
+          } else {
+            contentLength = parseInt(res.headers['content-length'] + '', 10);
+            acceptRanges = res.headers['accept-ranges'] === 'bytes' &&
+                contentLength > 0 && opts.maxReconnects > 0;
+                stream.emit('response', res);
+        }
+        stream.emit('request', myreq);
       }
+        
       res.on('data', ondata);
       decoded.on('end', onend);
-      decoded.pipe(stream, { end: !acceptRanges });
+      decoded.on('readable', () => {
+        let chunk;
+        while (null !== (chunk = decoded.read())) stream.write(chunk)
+        })
       mydecoded = decoded;
-      stream.emit('response', res);
       res.on('error', onerror);
     });
     myreq.on('error', onRequestError);
-    stream.emit('request', myreq);
   };
 
   stream.abort = (): void => {
