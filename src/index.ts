@@ -18,7 +18,7 @@ namespace Miniget {
     maxRedirects?: number;
     maxRetries?: number;
     maxReconnects?: number;
-    bypassRateLimit?: boolean | number;
+    downPerMb?: boolean | number;
     backoff?: { inc: number; max: number };
     highWaterMark?: number;
     transform?: (parsedUrl: RequestOptions) => RequestOptions;
@@ -38,7 +38,7 @@ const defaults: Miniget.Options = {
   maxRedirects: 2,
   maxRetries: 2,
   maxReconnects: 0,
-  bypassRateLimit: false,
+  downPerMb: false,
   backoff: { inc: 100, max: 10000 },
 };
 type Callback = (error: Error, message: IncomingMessage, body: string) => void;
@@ -74,14 +74,9 @@ function Miniget(url: string, options?: Miniget.Options | Callback, callback?: C
       rangeStart = parseInt(r[1], 10);
       rangeEnd = parseInt(r[2], 10);
     }
-  } else if (opts.bypassRateLimit) {
-    if (typeof opts.bypassRateLimit === 'number' && opts.bypassRateLimit > 0) {
-    rangeStart = parseInt(String(0), 10);
-    rangeEnd = parseInt(String(mb * opts.bypassRateLimit), 10);
-    } else if (opts.bypassRateLimit === true) {
-      rangeStart = parseInt(String(0), 10);
-      rangeEnd = parseInt(String(mb), 10);
-    }
+  } else if (opts.downPerMb) {
+    rangeStart = 0;
+    rangeEnd = 0;
   }
 
   // Add `Accept-Encoding` header.
@@ -110,7 +105,7 @@ function Miniget(url: string, options?: Miniget.Options | Callback, callback?: C
         retryTimeout = setTimeout(doDownload, ms);
         stream.emit('reconnect', reconnects, retryOptions.err);
         return true;
-      } else if (opts.bypassRateLimit && (contentLength > rangeEnd)) {
+      } else if (opts.downPerMb && (contentLength > rangeEnd)) {
         doDownload()
         return true;
       }
@@ -153,8 +148,8 @@ function Miniget(url: string, options?: Miniget.Options | Callback, callback?: C
 
     Object.assign(parsed, opts);
     if (acceptRanges && downloaded > 0) {
-      if (opts.bypassRateLimit) {
-        let end = rangeEnd += typeof opts.bypassRateLimit === 'number' ? mb * opts.bypassRateLimit : mb * 10;
+      if (opts.downPerMb) {
+        let end = rangeEnd += typeof opts.downPerMb === 'number' ? mb * opts.downPerMb : mb * 10;
         let start = rangeStart
         parsed.headers = Object.assign({}, parsed.headers, {
             Range: `bytes=${start}-${end}`
@@ -201,6 +196,21 @@ function Miniget(url: string, options?: Miniget.Options | Callback, callback?: C
         }
         return;
       }
+      if (!contentLength) {
+        if (opts.downPerMb) {
+          doSampleRequest((res: IncomingMessage) => {
+          contentLength = parseInt(res.headers['content-length'] + '', 10)
+          acceptRanges = res.headers['accept-ranges'] === 'bytes' &&
+          contentLength > 0 && opts.maxReconnects > 0;
+          stream.emit('response', res);
+    });
+        } else {
+          contentLength = parseInt(res.headers['content-length'] + '', 10);
+          acceptRanges = res.headers['accept-ranges'] === 'bytes' &&
+          contentLength > 0 && opts.maxReconnects > 0;
+          stream.emit('response', res);
+  }
+};
       let decoded = res as unknown as Transform;
       const cleanup = (): void => {
         res.removeListener('data', ondata);
@@ -229,22 +239,6 @@ function Miniget(url: string, options?: Miniget.Options | Callback, callback?: C
           }
         }
       }
-      if (!contentLength) {
-          if (opts.bypassRateLimit) {
-            doSampleRequest((res: IncomingMessage) => {
-              contentLength = parseInt(res.headers['content-length'] + '', 10)
-              acceptRanges = res.headers['accept-ranges'] === 'bytes' &&
-              contentLength > 0 && opts.maxReconnects > 0;
-              stream.emit('response', res);
-              })
-          } else {
-            contentLength = parseInt(res.headers['content-length'] + '', 10);
-            acceptRanges = res.headers['accept-ranges'] === 'bytes' &&
-                contentLength > 0 && opts.maxReconnects > 0;
-                stream.emit('response', res);
-        }
-        stream.emit('request', myreq);
-      }
         
       res.on('data', ondata);
       decoded.on('end', onend);
@@ -256,6 +250,7 @@ function Miniget(url: string, options?: Miniget.Options | Callback, callback?: C
       res.on('error', onerror);
     });
     myreq.on('error', onRequestError);
+    stream.emit('request', myreq);
   };
 
   stream.abort = (): void => {
