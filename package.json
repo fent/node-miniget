@@ -27,7 +27,7 @@
   "devDependencies": {
     "@types/lolex": "^5.1.0",
     "@types/mocha": "^5.2.7",
-    "@types/node": "^12.7.11",
+    "@types/node": "^13.1.0",
     "lolex": "^5.0.0",
     "longjohn": "^0.2.12",
     "mocha": "^6.2.0",
