@@ -15,7 +15,7 @@ const miniget = require('miniget');
 
 miniget('http://mywebsite.com', (err, res, body) => {
   console.log('webpage contents: ', body);
-}));
+});
 ```
 
 Request can be streamed right away
