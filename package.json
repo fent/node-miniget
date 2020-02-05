@@ -28,7 +28,7 @@
     "@types/lolex": "^5.1.0",
     "@types/mocha": "^7.0.0",
     "@types/node": "^13.1.0",
-    "lolex": "^5.0.0",
+    "lolex": "^6.0.0",
     "longjohn": "^0.2.12",
     "mocha": "^7.0.1",
     "nock": "^11.1.0",
