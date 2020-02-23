@@ -79,6 +79,31 @@ describe('Make a request', () => {
     });
   });
 
+  describe('with a promise', () => {
+    it('Gives contents of page', async () => {
+      const scope = nock('http://webby.com')
+        .get('/pathos')
+        .replyWithFile(200, __filename);
+      let [res, body] = await miniget.promise('http://webby.com/pathos');
+      scope.done();
+      assert.equal(res.statusCode, 200);
+      assert.ok(body.length > 100);
+    });
+
+    describe('that errors', () => {
+      it('error is caught', async () => {
+        const scope = nock('http://something.com')
+          .get('/one/two/three')
+          .replyWithError('NONONO');
+        await assert.rejects(
+          miniget.promise('http://something.com/one/two/three', { maxRetries: 0 }),
+          null, 'NONONO'
+        );
+        scope.done();
+      });
+    });
+  });
+
   describe('that errors', () => {
     it('Emits error event', (done) => {
       const scope = nock('https://mysite.com')

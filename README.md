@@ -45,7 +45,11 @@ Makes a GET request. `options` can have any properties from the [`http.request()
   ```
   Given encodings will be added to the `Accept-Encoding` header, and the response will be decoded if the server responds with encoded content.
 
-If `callback` is given, will concatenate the response, and call `callback` with a possible error, the response, and the response body.
+If `callback` is given, will concatenate the response, and call `callback` with a possible error, the response, and the response body. If you'd like a concatenated response, but want to use `await` instead, you can call `miniget.promise()`.
+
+```js
+let [res, body] = await miniget.promise('http://yourwebsite.com');
+```
 
 Miniget returns a readable stream if `callback` is not given, errors will then be emitted on the stream. Returned stream also contains an `.abort()` method, and can emit the following events.
 

@@ -232,4 +232,17 @@ function Miniget(url: string, options?: Miniget.Options | Callback, callback?: C
   return callback ? null : stream;
 }
 
+// istanbul ignore next
+// https://github.com/istanbuljs/nyc/issues/1209
+namespace Miniget {
+  export const promise = (url: string, options?: Options): Promise<[IncomingMessage, string]> => {
+    return new Promise((resolve, reject) => {
+      Miniget(url, options, (err, res, body) => {
+        if (err) return reject(err);
+        resolve([res, body]);
+      });
+    });
+  };
+}
+
 export = Miniget;
