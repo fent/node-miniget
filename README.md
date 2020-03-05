@@ -16,6 +16,9 @@ const miniget = require('miniget');
 miniget('http://mywebsite.com', (err, res, body) => {
   console.log('webpage contents: ', body);
 });
+
+// with await
+let [res, body] = await miniget.promise('http://yourwebsite.com');
 ```
 
 Request can be streamed right away
