@@ -13,7 +13,7 @@
     "type": "git",
     "url": "git://github.com/fent/node-miniget.git"
   },
-  "author": "fent (https://github.com/fent)",
+  "author": "fent <fentbox@gmail.com> (https://github.com/fent)",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "files": [
