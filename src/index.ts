@@ -156,9 +156,11 @@ function Miniget(url: string, options?: Miniget.Options | Callback, callback?: C
 
         // Check for rate limiting.
       } else if (res.statusCode in retryCodes) {
-        doRetry({ retryAfter: parseInt(res.headers['retry-after'], 10) });
+        if (!doRetry({ retryAfter: parseInt(res.headers['retry-after'], 10) })) {
+          let err = Error('Status code: ' + res.statusCode);
+          stream.emit('error', err);
+        }
         return;
-
       } else if (res.statusCode < 200 || 400 <= res.statusCode) {
         let err = Error('Status code: ' + res.statusCode);
         if (res.statusCode >= 500) {
