@@ -276,6 +276,26 @@ describe('Make a request', () => {
         clock.tick(1000);
       });
     });
+    it('Emits error after multiple tries', (done) => {
+      const scope = nock('https://mysite.io')
+        .get('/api/v1/data')
+        .reply(429, 'too many requests')
+        .get('/api/v1/data')
+        .reply(429, 'too many requests')
+        .get('/api/v1/data')
+        .reply(429, 'too many requests');
+
+      const stream = miniget('https://mysite.io/api/v1/data');
+      stream.on('error', (err) => {
+        assert.ok(err);
+        scope.done();
+        assert.equal(err.message, 'Status code: 429');
+        done();
+      });
+      stream.on('retry', () => {
+        clock.tick(1000);
+      });
+    });
     describe('with `retry-after` header', () => {
       it('Retries after given time', (done) => {
         const scope = nock('https://mysite.io')
@@ -449,7 +469,8 @@ describe('Make a request', () => {
           });
           let res: IncomingMessage;
           stream.on('response', (a) => {
-            res = a; });
+            res = a;
+          });
           let reconnects = 0;
           stream.on('reconnect', () => {
             reconnects++;
