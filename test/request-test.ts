@@ -104,6 +104,24 @@ describe('Make a request', () => {
     });
   });
 
+  describe('without callback', () => {
+    it('Returns a stream', (done) => {
+      const scope = nock('http://website.com')
+        .get('/path')
+        .replyWithFile(200, __filename);
+      const stream = miniget('http://website.com/path');
+      stream.on('error', done);
+      stream.on('response', (res) => {
+        res.on('error', done);
+        res.on('end', () => {
+          scope.done();
+          done();
+        });
+        res.resume();
+      });
+    });
+  });
+
   describe('that errors', () => {
     it('Emits error event', (done) => {
       const scope = nock('https://mysite.com')
@@ -155,40 +173,12 @@ describe('Make a request', () => {
     });
   });
 
-  describe('without callback', () => {
-    it('Returns a stream', (done) => {
-      const scope = nock('http://website.com')
-        .get('/path')
-        .replyWithFile(200, __filename);
-      const stream = miniget('http://website.com/path');
-      stream.on('error', done);
-      stream.on('response', (res) => {
-        res.on('error', done);
-        res.on('end', () => {
-          scope.done();
-          done();
-        });
-        res.resume();
-      });
-    });
-  });
-
   describe('with an incorrect URL', () => {
-    describe('with callback', () => {
-      it('Called with error', (done) => {
-        miniget('file:///Users/roly/', (err) => {
-          assert.ok(err);
-          done();
-        });
-      });
-    });
-
-    describe('without callback', () => {
-      it('Throws error', (done) => {
-        miniget('file:///Users/roly/').on('error', (err) => {
-          assert.ok(err);
-          done();
-        });
+    it('Throws error', (done) => {
+      miniget('file:///path/to/file/').on('error', (err) => {
+        assert.ok(err);
+        assert.equal(err.message, 'Invalid URL: file:///path/to/file/');
+        done();
       });
     });
   });
