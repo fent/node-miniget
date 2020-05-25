@@ -183,6 +183,16 @@ describe('Make a request', () => {
     });
   });
 
+  describe('with no URL', () => {
+    it('Throws error', (done) => {
+      miniget(undefined).on('error', (err) => {
+        assert.ok(err);
+        assert.equal(err.message, 'Invalid URL: undefined');
+        done();
+      });
+    });
+  });
+
   describe('that redirects', () => {
     it('Should download file after redirect', (done) => {
       const scope = nock('http://mysite.com')

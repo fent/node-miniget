@@ -120,8 +120,13 @@ function Miniget(url: string, options?: Miniget.Options | Callback, callback?: C
 
   const doDownload = (): void => {
     if (aborted) { return; }
-    let parsed: RequestOptions = urlParse(url);
-    let httpLib = httpLibs[parsed.protocol];
+    let parsed: RequestOptions, httpLib;
+    try {
+      parsed = urlParse(url);
+      httpLib = httpLibs[parsed.protocol];
+    } catch (err) {
+      // Let the error be caught by the if statement below.
+    }
     if (!httpLib) {
       stream.emit('error', Error('Invalid URL: ' + url));
       return;
