@@ -119,97 +119,102 @@ function Miniget(url: string, options?: Miniget.Options | Callback, callback?: C
   };
 
   const doDownload = (): void => {
-    if (aborted) { return; }
-    let parsed: RequestOptions = urlParse(url);
-    let httpLib = httpLibs[parsed.protocol];
-    if (!httpLib) {
-      stream.emit('error', Error('Invalid URL: ' + url));
-      return;
-    }
-
-    Object.assign(parsed, opts);
-    if (acceptRanges && downloaded > 0) {
-      let start = downloaded + rangeStart;
-      let end = rangeEnd || '';
-      parsed.headers = Object.assign({}, parsed.headers, {
-        Range: `bytes=${start}-${end}`
-      });
-    }
-
-    if (opts.transform) {
-      parsed = opts.transform(parsed);
-      if (parsed.protocol) {
-        httpLib = httpLibs[parsed.protocol];
-      }
-    }
-
-    myreq = httpLib.get(parsed, (res: IncomingMessage) => {
-      if (res.statusCode in redirectCodes) {
-        if (redirects++ >= opts.maxRedirects) {
-          stream.emit('error', Error('Too many redirects'));
-        } else {
-          url = res.headers.location;
-          setTimeout(doDownload, res.headers['retry-after'] ? parseInt(res.headers['retry-after'], 10) * 1000: 0);
-          stream.emit('redirect', url);
-        }
-        return;
-
-        // Check for rate limiting.
-      } else if (res.statusCode in retryCodes) {
-        doRetry({ retryAfter: parseInt(res.headers['retry-after'], 10) });
-        return;
-
-      } else if (res.statusCode < 200 || 400 <= res.statusCode) {
-        let err = Error('Status code: ' + res.statusCode);
-        if (res.statusCode >= 500) {
-          onRequestError(err, res.statusCode);
-        } else {
-          stream.emit('error', err);
-        }
+    try {
+      if (aborted) { return; }
+      let parsed: RequestOptions = urlParse(url);
+      let httpLib = httpLibs[parsed.protocol];
+      if (!httpLib) {
+        stream.emit('error', Error('Invalid URL: ' + url));
         return;
       }
-      let decoded = res as unknown as Transform;
-      const cleanup = (): void => {
-        res.removeListener('data', ondata);
-        decoded.removeListener('end', onend);
-        decoded.removeListener('error', onerror);
-        res.removeListener('error', onerror);
-      };
-      const ondata = (chunk: Buffer): void => { downloaded += chunk.length; };
-      const onend = (): void => {
-        cleanup();
-        if (!doRetry()) {
-          stream.end();
-        }
-      };
-      const onerror = (err: Error): void => {
-        cleanup();
-        onRequestError(err);
-      };
 
-      if (opts.acceptEncoding && res.headers['content-encoding']) {
-        for (let enc of res.headers['content-encoding'].split(', ').reverse()) {
-          let fn = opts.acceptEncoding[enc];
-          if (fn != null) {
-            decoded = decoded.pipe(fn());
-            decoded.on('error', onerror);
+      Object.assign(parsed, opts);
+      if (acceptRanges && downloaded > 0) {
+        let start = downloaded + rangeStart;
+        let end = rangeEnd || '';
+        parsed.headers = Object.assign({}, parsed.headers, {
+          Range: `bytes=${start}-${end}`
+        });
+      }
+
+      if (opts.transform) {
+        parsed = opts.transform(parsed);
+        if (parsed.protocol) {
+          httpLib = httpLibs[parsed.protocol];
+        }
+      }
+
+      myreq = httpLib.get(parsed, (res: IncomingMessage) => {
+        if (res.statusCode in redirectCodes) {
+          if (redirects++ >= opts.maxRedirects) {
+            stream.emit('error', Error('Too many redirects'));
+          } else {
+            url = res.headers.location;
+            setTimeout(doDownload, res.headers['retry-after'] ? parseInt(res.headers['retry-after'], 10) * 1000: 0);
+            stream.emit('redirect', url);
+          }
+          return;
+
+          // Check for rate limiting.
+        } else if (res.statusCode in retryCodes) {
+          doRetry({ retryAfter: parseInt(res.headers['retry-after'], 10) });
+          return;
+
+        } else if (res.statusCode < 200 || 400 <= res.statusCode) {
+          let err = Error('Status code: ' + res.statusCode);
+          if (res.statusCode >= 500) {
+            onRequestError(err, res.statusCode);
+          } else {
+            stream.emit('error', err);
+          }
+          return;
+        }
+        let decoded = res as unknown as Transform;
+        const cleanup = (): void => {
+          res.removeListener('data', ondata);
+          decoded.removeListener('end', onend);
+          decoded.removeListener('error', onerror);
+          res.removeListener('error', onerror);
+        };
+        const ondata = (chunk: Buffer): void => { downloaded += chunk.length; };
+        const onend = (): void => {
+          cleanup();
+          if (!doRetry()) {
+            stream.end();
+          }
+        };
+        const onerror = (err: Error): void => {
+          cleanup();
+          onRequestError(err);
+        };
+
+        if (opts.acceptEncoding && res.headers['content-encoding']) {
+          for (let enc of res.headers['content-encoding'].split(', ').reverse()) {
+            let fn = opts.acceptEncoding[enc];
+            if (fn != null) {
+              decoded = decoded.pipe(fn());
+              decoded.on('error', onerror);
+            }
           }
         }
-      }
-      if (!contentLength) {
-        contentLength = parseInt(res.headers['content-length'] + '', 10);
-        acceptRanges = res.headers['accept-ranges'] === 'bytes' &&
-          contentLength > 0 && opts.maxReconnects > 0;
-      }
-      res.on('data', ondata);
-      decoded.on('end', onend);
-      decoded.pipe(stream, { end: !acceptRanges });
-      mydecoded = decoded;
-      stream.emit('response', res);
-      res.on('error', onerror);
-    });
-    myreq.on('error', onRequestError);
-    stream.emit('request', myreq);
+        if (!contentLength) {
+          contentLength = parseInt(res.headers['content-length'] + '', 10);
+          acceptRanges = res.headers['accept-ranges'] === 'bytes' &&
+            contentLength > 0 && opts.maxReconnects > 0;
+        }
+        res.on('data', ondata);
+        decoded.on('end', onend);
+        decoded.pipe(stream, { end: !acceptRanges });
+        mydecoded = decoded;
+        stream.emit('response', res);
+        res.on('error', onerror);
+      });
+      myreq.on('error', onRequestError);
+      stream.emit('request', myreq);
+    }
+    catch(err) {
+      stream.emit('error', err);
+    }
   };
 
   stream.abort = (): void => {
