@@ -142,7 +142,12 @@ function Miniget(url: string, options?: Miniget.Options | Callback, callback?: C
     }
 
     if (opts.transform) {
-      parsed = opts.transform(parsed);
+      try {
+        parsed = opts.transform(parsed);
+      } catch (err) {
+        stream.emit('error', err);
+        return;
+      }
       if (!parsed || parsed.protocol) {
         httpLib = httpLibs[parsed?.protocol];
         if (!httpLib) {

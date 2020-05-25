@@ -382,6 +382,17 @@ describe('Make a request', () => {
         });
       });
     });
+    describe('that throws', () => {
+      it('Emits error', (done) => {
+        miniget('http://kanto.com', {
+          transform: () => { throw Error('hello'); },
+        }, (err) => {
+          assert.ok(err);
+          assert.equal(err.message, 'hello');
+          done();
+        });
+      });
+    });
   });
 
   describe('that disconnects before end', () => {
