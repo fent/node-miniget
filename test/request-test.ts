@@ -174,7 +174,7 @@ describe('Make a request', () => {
   });
 
   describe('with an incorrect URL', () => {
-    it('Throws error', (done) => {
+    it('Emits error', (done) => {
       miniget('file:///path/to/file/').on('error', (err) => {
         assert.ok(err);
         assert.equal(err.message, 'Invalid URL: file:///path/to/file/');
@@ -184,7 +184,7 @@ describe('Make a request', () => {
   });
 
   describe('with no URL', () => {
-    it('Throws error', (done) => {
+    it('Emits error', (done) => {
       miniget(undefined).on('error', (err) => {
         assert.ok(err);
         assert.equal(err.message, 'Invalid URL: undefined');
@@ -355,6 +355,31 @@ describe('Make a request', () => {
         assert.equal(res.statusCode, 200);
         assert.equal(body, '[  ]');
         done();
+      });
+    });
+    describe('with bad URL', () => {
+      it('Emits error', (done) => {
+        miniget('http://supplies.com/boxes', {
+          transform: (parsed) => {
+            parsed.protocol = 'file';
+            return parsed;
+          },
+        }, (err) => {
+          assert.ok(err);
+          assert.equal(err.message, 'Invalid URL object from `transform` function');
+          done();
+        });
+      });
+    });
+    describe('with no object returned', () => {
+      it('Emits error', (done) => {
+        miniget('http://supplies.com/boxes', {
+          transform: () => undefined,
+        }, (err) => {
+          assert.ok(err);
+          assert.equal(err.message, 'Invalid URL object from `transform` function');
+          done();
+        });
       });
     });
   });

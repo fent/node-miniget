@@ -143,8 +143,12 @@ function Miniget(url: string, options?: Miniget.Options | Callback, callback?: C
 
     if (opts.transform) {
       parsed = opts.transform(parsed);
-      if (parsed.protocol) {
-        httpLib = httpLibs[parsed.protocol];
+      if (!parsed || parsed.protocol) {
+        httpLib = httpLibs[parsed?.protocol];
+        if (!httpLib) {
+          stream.emit('error', Error('Invalid URL object from `transform` function'));
+          return;
+        }
       }
     }
 
