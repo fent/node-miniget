@@ -10,8 +10,8 @@ const httpLibs: {
     get: (options: RequestOptions | string | URL, callback?: (res: IncomingMessage) => void) => ClientRequest;
   };
 } = { 'http:': http, 'https:': https };
-const redirectCodes = { 301: true, 302: true, 303: true, 307: true };
-const retryCodes = { 429: true, 503: true };
+const redirectStatusCodes = { 301: true, 302: true, 303: true, 307: true };
+const retryStatusCodes = { 429: true, 503: true };
 
 namespace Miniget {
   export interface Options extends RequestOptions {
@@ -44,7 +44,8 @@ const defaults: Miniget.Options = {
 function Miniget(url: string, options: Miniget.Options = {}): Miniget.Stream {
   const opts: Miniget.Options = Object.assign({}, defaults, options);
   const stream = new PassThrough({ highWaterMark: opts.highWaterMark }) as Miniget.Stream;
-  let myreq: ClientRequest | null, mydecoded: Transform | null;
+  let activeRequest: ClientRequest | null;
+  let activeDecodedStream: Transform | null;
   let aborted = false;
   let redirects = 0;
   let retries = 0;
@@ -56,7 +57,7 @@ function Miniget(url: string, options: Miniget.Options = {}): Miniget.Stream {
   let downloaded = 0;
 
   // Check if this is a ranged request.
-  if (opts.headers && opts.headers.Range) {
+  if (opts.headers?.Range) {
     let r = /bytes=(\d+)-(\d+)?/.exec(opts.headers.Range + '');
     if (r) {
       rangeStart = parseInt(r[1], 10);
@@ -71,28 +72,37 @@ function Miniget(url: string, options: Miniget.Options = {}): Miniget.Stream {
     }, opts.headers);
   }
 
+  const downloadHasStarted = () => activeDecodedStream && 0 < downloaded;
+  const downloadEnded = () => !acceptRanges || downloaded == contentLength;
+
+  const reconnect = (err?: Error) => {
+    activeDecodedStream = null;
+    retries = 0;
+    let inc = opts.backoff.inc;
+    let ms = Math.min(inc, opts.backoff.max);
+    retryTimeout = setTimeout(doDownload, ms);
+    stream.emit('reconnect', reconnects, err);
+  };
+
+  const reconnectIfEndedEarly = (err?: Error) => {
+    if (!downloadEnded() && reconnects++ < opts.maxReconnects) {
+      reconnect(err);
+      return true;
+    }
+    return false;
+  };
+
   interface RetryOptions {
     statusCode?: number;
     err?: Error;
     retryAfter?: number;
   }
-  const doRetry = (retryOptions: RetryOptions = {}): boolean => {
+  const retryRequest = (retryOptions: RetryOptions): boolean => {
     if (aborted) { return false; }
-    // If there is an error when the download has already started,
-    // but not finished, try reconnecting.
-    if (mydecoded && 0 < downloaded) {
-      if (acceptRanges && downloaded < contentLength &&
-        reconnects++ < opts.maxReconnects) {
-        mydecoded = null;
-        retries = 0;
-        let inc = opts.backoff.inc;
-        let ms = Math.min(inc, opts.backoff.max);
-        retryTimeout = setTimeout(doDownload, ms);
-        stream.emit('reconnect', reconnects, retryOptions.err);
-        return true;
-      }
-    } else if ((!retryOptions.statusCode ||
-      retryOptions.err && retryOptions.err.message === 'ENOTFOUND') &&
+    if (downloadHasStarted()) {
+      return reconnectIfEndedEarly(retryOptions.err);
+    } else if (
+      (!retryOptions.statusCode || retryOptions.err.message === 'ENOTFOUND') &&
       retries++ < opts.maxRetries) {
       let ms = retryOptions.retryAfter ||
         Math.min(retries * opts.backoff.inc, opts.backoff.max);
@@ -104,7 +114,7 @@ function Miniget(url: string, options: Miniget.Options = {}): Miniget.Stream {
   };
 
   const onRequestError = (err: Error, statusCode?: number): void => {
-    if (!doRetry({ err, statusCode })) {
+    if (!retryRequest({ err, statusCode })) {
       stream.emit('error', err);
     }
   };
@@ -148,8 +158,8 @@ function Miniget(url: string, options: Miniget.Options = {}): Miniget.Stream {
       }
     }
 
-    myreq = httpLib.get(parsed, (res: IncomingMessage) => {
-      if (res.statusCode in redirectCodes) {
+    activeRequest = httpLib.get(parsed, (res: IncomingMessage) => {
+      if (res.statusCode in redirectStatusCodes) {
         if (redirects++ >= opts.maxRedirects) {
           stream.emit('error', Error('Too many redirects'));
         } else {
@@ -160,8 +170,8 @@ function Miniget(url: string, options: Miniget.Options = {}): Miniget.Stream {
         return;
 
         // Check for rate limiting.
-      } else if (res.statusCode in retryCodes) {
-        if (!doRetry({ retryAfter: parseInt(res.headers['retry-after'], 10) })) {
+      } else if (res.statusCode in retryStatusCodes) {
+        if (!retryRequest({ retryAfter: parseInt(res.headers['retry-after'], 10) })) {
           let err = Error('Status code: ' + res.statusCode);
           stream.emit('error', err);
         }
@@ -175,17 +185,17 @@ function Miniget(url: string, options: Miniget.Options = {}): Miniget.Stream {
         }
         return;
       }
-      let decoded = res as unknown as Transform;
+      let decodedStream = res as unknown as Transform;
       const cleanup = (): void => {
         res.removeListener('data', ondata);
-        decoded.removeListener('end', onend);
-        decoded.removeListener('error', onerror);
+        decodedStream.removeListener('end', onend);
+        decodedStream.removeListener('error', onerror);
         res.removeListener('error', onerror);
       };
       const ondata = (chunk: Buffer): void => { downloaded += chunk.length; };
       const onend = (): void => {
         cleanup();
-        if (!doRetry()) {
+        if (!reconnectIfEndedEarly()) {
           stream.end();
         }
       };
@@ -198,8 +208,8 @@ function Miniget(url: string, options: Miniget.Options = {}): Miniget.Stream {
         for (let enc of res.headers['content-encoding'].split(', ').reverse()) {
           let fn = opts.acceptEncoding[enc];
           if (fn != null) {
-            decoded = decoded.pipe(fn());
-            decoded.on('error', onerror);
+            decodedStream = decodedStream.pipe(fn());
+            decodedStream.on('error', onerror);
           }
         }
       }
@@ -209,21 +219,21 @@ function Miniget(url: string, options: Miniget.Options = {}): Miniget.Stream {
           contentLength > 0 && opts.maxReconnects > 0;
       }
       res.on('data', ondata);
-      decoded.on('end', onend);
-      decoded.pipe(stream, { end: !acceptRanges });
-      mydecoded = decoded;
+      decodedStream.on('end', onend);
+      decodedStream.pipe(stream, { end: !acceptRanges });
+      activeDecodedStream = decodedStream;
       stream.emit('response', res);
       res.on('error', onerror);
     });
-    myreq.on('error', onRequestError);
-    stream.emit('request', myreq);
+    activeRequest.on('error', onRequestError);
+    stream.emit('request', activeRequest);
   };
 
   stream.abort = (): void => {
     aborted = true;
     stream.emit('abort');
-    if (myreq) { myreq.abort(); }
-    if (mydecoded) { mydecoded.unpipe(stream); }
+    activeRequest?.abort();
+    activeDecodedStream?.unpipe(stream);
     clearTimeout(retryTimeout);
   };
 
