@@ -26,6 +26,7 @@ namespace Miniget {
 
   export interface Stream extends PassThrough {
     abort: () => void;
+    text: () => Promise<string>;
     on(event: 'reconnect', listener: (attempt: number, err?: Error) => void): this;
     on(event: 'retry', listener: (attempt: number, err?: Error) => void): this;
     on(event: 'redirect', listener: (url: string) => void): this;
@@ -39,6 +40,8 @@ const defaults: Miniget.Options = {
   maxReconnects: 0,
   backoff: { inc: 100, max: 10000 },
 };
+
+
 type Callback = (error: Error, message: IncomingMessage, body: string) => void;
 
 function Miniget(url: string, options?: Miniget.Options): Miniget.Stream;
@@ -236,7 +239,14 @@ function Miniget(url: string, options?: Miniget.Options | Callback, callback?: C
     clearTimeout(retryTimeout);
   };
 
-  process.nextTick(doDownload);
+  stream.text = async () => new Promise((resolve, reject) => {
+    let body = '';
+    stream.setEncoding('utf8');
+    stream.on('data', (chunk) => body += chunk);
+    stream.on('end', () => resolve(body));
+    stream.on('error', reject);
+  });
+
   if (callback) {
     let body = '', myres: IncomingMessage;
     stream.setEncoding('utf8');
@@ -245,20 +255,9 @@ function Miniget(url: string, options?: Miniget.Options | Callback, callback?: C
     stream.on('end', () => callback(null, myres, body));
     stream.on('error', callback);
   }
-  return callback ? null : stream;
-}
 
-// istanbul ignore next
-// https://github.com/istanbuljs/nyc/issues/1209
-namespace Miniget {
-  export const promise = (url: string, options?: Options): Promise<[IncomingMessage, string]> => {
-    return new Promise((resolve, reject) => {
-      Miniget(url, options, (err, res, body) => {
-        if (err) return reject(err);
-        resolve([res, body]);
-      });
-    });
-  };
+  process.nextTick(doDownload);
+  return callback ? null : stream;
 }
 
 export = Miniget;

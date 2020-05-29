@@ -79,14 +79,13 @@ describe('Make a request', () => {
     });
   });
 
-  describe('with a promise', () => {
-    it('Gives contents of page', async () => {
+  describe('with `.text()`', () => {
+    it('Gives entire contents of page', async () => {
       const scope = nock('http://webby.com')
         .get('/pathos')
         .replyWithFile(200, __filename);
-      let [res, body] = await miniget.promise('http://webby.com/pathos');
+      let body = await miniget('http://webby.com/pathos').text();
       scope.done();
-      assert.equal(res.statusCode, 200);
       assert.ok(body.length > 100);
     });
 
@@ -96,7 +95,7 @@ describe('Make a request', () => {
           .get('/one/two/three')
           .replyWithError('NONONO');
         await assert.rejects(
-          miniget.promise('http://something.com/one/two/three', { maxRetries: 0 }),
+          miniget('http://something.com/one/two/three', { maxRetries: 0 }).text(),
           null, 'NONONO'
         );
         scope.done();
@@ -104,7 +103,7 @@ describe('Make a request', () => {
     });
   });
 
-  describe('without callback', () => {
+  describe('to a working site', () => {
     it('Returns a stream', (done) => {
       const scope = nock('http://website.com')
         .get('/path')
@@ -321,73 +320,68 @@ describe('Make a request', () => {
   });
 
   describe('using the `transform` option', () => {
-    it('Calls `transform` function and customizes request', (done) => {
+    it('Calls `transform` function and customizes request', async () => {
       const scope = nock('http://other.com')
         .get('/http://supplies.com/boxes')
         .reply(200, '[  ]');
-      miniget('http://supplies.com/boxes', {
+      let transformCalled = false;
+      let body = await miniget('http://supplies.com/boxes', {
         transform: (parsed) => {
+          transformCalled = true;
           return {
             host: 'other.com',
             path: `/${parsed.protocol}//${parsed.host}${parsed.path}`,
           };
         },
-      }, (err, res, body) => {
-        scope.done();
-        assert.ifError(err);
-        assert.equal(res.statusCode, 200);
-        assert.equal(body, '[  ]');
-        done();
-      });
+      }).text();
+      assert.ok(transformCalled);
+      scope.done();
+      assert.equal(body, '[  ]');
     });
-    it('Calls `transform` function and customizes request with protocol changing', (done) => {
+    it('Calls `transform` function and customizes request with protocol changing', async () => {
       const scope = nock('http://that.com')
         .get('/')
         .reply(200, '[  ]');
-      miniget('https://that.com', {
+      let body = await miniget('https://that.com', {
         transform: (parsed) => {
           parsed.protocol = 'http:';
           return parsed;
         },
-      }, (err, res, body) => {
-        scope.done();
-        assert.ifError(err);
-        assert.equal(res.statusCode, 200);
-        assert.equal(body, '[  ]');
-        done();
-      });
+      }).text();
+      scope.done();
+      assert.equal(body, '[  ]');
     });
     describe('with bad URL', () => {
-      it('Emits error', (done) => {
-        miniget('http://supplies.com/boxes', {
+      it('Catches error', (done) => {
+        let stream = miniget('http://supplies.com/boxes', {
           transform: (parsed) => {
             parsed.protocol = 'file';
             return parsed;
           },
-        }, (err) => {
-          assert.ok(err);
+        });
+        stream.on('error', (err) => {
           assert.equal(err.message, 'Invalid URL object from `transform` function');
           done();
         });
       });
     });
     describe('with no object returned', () => {
-      it('Emits error', (done) => {
-        miniget('http://supplies.com/boxes', {
+      it('Catches error', (done) => {
+        let stream = miniget('http://supplies.com/boxes', {
           transform: () => undefined,
-        }, (err) => {
-          assert.ok(err);
+        });
+        stream.on('error', (err) => {
           assert.equal(err.message, 'Invalid URL object from `transform` function');
           done();
         });
       });
     });
     describe('that throws', () => {
-      it('Emits error', (done) => {
-        miniget('http://kanto.com', {
+      it('Catches error', (done) => {
+        let stream = miniget('http://kanto.com', {
           transform: () => { throw Error('hello'); },
-        }, (err) => {
-          assert.ok(err);
+        });
+        stream.on('error', (err) => {
           assert.equal(err.message, 'hello');
           done();
         });
