@@ -10,8 +10,8 @@ const httpLibs: {
     get: (options: RequestOptions | string | URL, callback?: (res: IncomingMessage) => void) => ClientRequest;
   };
 } = { 'http:': http, 'https:': https };
-const redirectStatusCodes = { 301: true, 302: true, 303: true, 307: true };
-const retryStatusCodes = { 429: true, 503: true };
+const redirectStatusCodes = new Set([301, 302, 303, 307]);
+const retryStatusCodes = new Set([429, 503]);
 
 namespace Miniget {
   export interface Options extends RequestOptions {
@@ -159,7 +159,7 @@ function Miniget(url: string, options: Miniget.Options = {}): Miniget.Stream {
     }
 
     activeRequest = httpLib.get(parsed, (res: IncomingMessage) => {
-      if (res.statusCode in redirectStatusCodes) {
+      if (redirectStatusCodes.has(res.statusCode)) {
         if (redirects++ >= opts.maxRedirects) {
           stream.emit('error', Error('Too many redirects'));
         } else {
@@ -170,7 +170,7 @@ function Miniget(url: string, options: Miniget.Options = {}): Miniget.Stream {
         return;
 
         // Check for rate limiting.
-      } else if (res.statusCode in retryStatusCodes) {
+      } else if (retryStatusCodes.has(res.statusCode)) {
         if (!retryRequest({ retryAfter: parseInt(res.headers['retry-after'], 10) })) {
           let err = Error('Status code: ' + res.statusCode);
           stream.emit('error', err);
