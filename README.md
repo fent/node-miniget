@@ -31,7 +31,7 @@ miniget('http://api.mywebsite.com/v1/messages.json')
 
 # API
 
-### miniget(url, [options], [callback(err, http.RequestResponse, body)])
+### miniget(url, [options])
 
 Makes a GET request. `options` can have any properties from the [`http.request()` function](https://nodejs.org/api/http.html#http_http_request_options_callback), in addition to
 
@@ -48,13 +48,21 @@ Makes a GET request. `options` can have any properties from the [`http.request()
   ```
   Given encodings will be added to the `Accept-Encoding` header, and the response will be decoded if the server responds with encoded content.
 
-If `callback` is given, will concatenate the response, and call `callback` with a possible error, the response, and the response body. If you'd like a concatenated response, but want to use `await` instead, you can call `miniget(url).text()`.
+If you'd like a concatenated response, use `miniget(url).text()`.
 
 ```js
 let body = await miniget('http://yourwebsite.com').text();
 ```
 
-Miniget returns a readable stream if `callback` is not given, errors will then be emitted on the stream. Returned stream also contains an `.abort()` method, and can emit the following events.
+Miniget returns a readable stream, errors will then be emitted on the stream. Returned stream has additional methods added, and can emit the following events.
+
+### Stream#abort()
+
+Aborts the request.
+
+### Stream#text()
+
+Returns a promise that resolves to the concatenated contents of the response.
 
 #### Event: redirect
 * `string` - URL redirected to.

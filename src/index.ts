@@ -41,19 +41,7 @@ const defaults: Miniget.Options = {
   backoff: { inc: 100, max: 10000 },
 };
 
-
-type Callback = (error: Error, message: IncomingMessage, body: string) => void;
-
-function Miniget(url: string, options?: Miniget.Options): Miniget.Stream;
-function Miniget(url: string, options: Miniget.Options, callback?: Callback): void;
-function Miniget(url: string, callback: Callback): Miniget.Stream;
-function Miniget(url: string, options?: Miniget.Options | Callback, callback?: Callback): Miniget.Stream | void {
-  if (typeof options === 'function') {
-    callback = options;
-    options = {};
-  } else if (!options) {
-    options = {};
-  }
+function Miniget(url: string, options: Miniget.Options = {}): Miniget.Stream {
   const opts: Miniget.Options = Object.assign({}, defaults, options);
   const stream = new PassThrough({ highWaterMark: opts.highWaterMark }) as Miniget.Stream;
   let myreq: ClientRequest | null, mydecoded: Transform | null;
@@ -247,17 +235,8 @@ function Miniget(url: string, options?: Miniget.Options | Callback, callback?: C
     stream.on('error', reject);
   });
 
-  if (callback) {
-    let body = '', myres: IncomingMessage;
-    stream.setEncoding('utf8');
-    stream.on('data', (chunk) => body += chunk);
-    stream.on('response', (res) => myres = res);
-    stream.on('end', () => callback(null, myres, body));
-    stream.on('error', callback);
-  }
-
   process.nextTick(doDownload);
-  return callback ? null : stream;
+  return stream;
 }
 
 export = Miniget;

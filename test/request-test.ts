@@ -18,67 +18,6 @@ describe('Make a request', () => {
   beforeEach(() => clock = lolex.install());
   afterEach(() => clock.uninstall());
 
-  describe('with callback', () => {
-    it('Gives contents of page', (done) => {
-      const scope = nock('http://website.com')
-        .get('/path')
-        .replyWithFile(200, __filename);
-      miniget('http://website.com/path', (err, res, body) => {
-        assert.ifError(err);
-        scope.done();
-        assert.equal(res.statusCode, 200);
-        assert.ok(body.length > 100);
-        done();
-      });
-    });
-
-    describe('with options', () => {
-      it('Makes request with options', (done) => {
-        const scope = nock('http://website.com', {
-          reqheaders: { 'User-Agent': 'miniget' },
-        })
-          .get('/path')
-          .replyWithFile(200, __filename);
-        miniget('http://website.com/path', {
-          headers: { 'User-Agent': 'miniget' },
-        }, (err, res, body) => {
-          assert.ifError(err);
-          scope.done();
-          assert.equal(res.statusCode, 200);
-          assert.ok(body.length > 100);
-          done();
-        });
-      });
-    });
-
-    describe('that errors', () => {
-      it('Calls callback with error', (done) => {
-        const scope = nock('https://mysite.com')
-          .get('/path')
-          .replyWithError('ENOTFOUND');
-        miniget('https://mysite.com/path', { maxRetries: 0 }, (err) => {
-          assert.ok(err);
-          assert.equal(err.message, 'ENOTFOUND');
-          scope.done();
-          done();
-        });
-      });
-    });
-
-    describe('with bad path', () => {
-      it('Calls callback with error', (done) => {
-        const scope = nock('https://mysite.com')
-          .get('/badpath')
-          .reply(404, 'not exists');
-        miniget('https://mysite.com/badpath', (err) => {
-          assert.ok(err);
-          scope.done();
-          done();
-        });
-      });
-    });
-  });
-
   describe('with `.text()`', () => {
     it('Gives entire contents of page', async () => {
       const scope = nock('http://webby.com')
@@ -117,6 +56,35 @@ describe('Make a request', () => {
           done();
         });
         res.resume();
+      });
+    });
+  });
+
+  describe('with options', () => {
+    it('Makes request with options', async () => {
+      const scope = nock('http://website.com', {
+        reqheaders: { 'User-Agent': 'miniget' },
+      })
+        .get('/path')
+        .replyWithFile(200, __filename);
+      let body = await miniget('http://website.com/path', {
+        headers: { 'User-Agent': 'miniget' },
+      }).text();
+      scope.done();
+      assert.ok(body.length > 100);
+    });
+  });
+
+  describe('with bad path', () => {
+    it('Emits error', (done) => {
+      const scope = nock('https://mysite.com')
+        .get('/badpath')
+        .reply(404, 'not exists');
+      let stream = miniget('https://mysite.com/badpath');
+      stream.on('error', (err) => {
+        scope.done();
+        assert.ok(err);
+        done();
       });
     });
   });
@@ -633,7 +601,7 @@ describe('Make a request', () => {
 
   describe('that gets aborted', () => {
     describe('immediately', () => {
-      it('Does not call callback or end stream', (done) => {
+      it('Does not end stream', (done) => {
         nock('http://anime.me')
           .get('/')
           .reply(200, 'ooooaaaaaaaeeeee');
