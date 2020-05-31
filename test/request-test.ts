@@ -654,7 +654,7 @@ describe('Make a request', () => {
       });
     });
 
-    it('Decompresses stream', (done) => {
+    it('Decompresses stream', async () => {
       const res = fs.createReadStream(file).pipe(zlib.createGzip());
       const scope = nock('http://yoursite.com', {
         reqheaders: { 'Accept-Encoding': 'gzip' }
@@ -668,16 +668,13 @@ describe('Make a request', () => {
         acceptEncoding: { gzip: (): Transform => zlib.createGunzip() },
         maxRetries: 0,
       });
-      streamEqual(fs.createReadStream(file), stream, (err, equal) => {
-        assert.ifError(err);
-        assert.ok(equal);
-        scope.done();
-        done();
-      });
+      let equal = await streamEqual(fs.createReadStream(file), stream);
+      assert.ok(equal);
+      scope.done();
     });
 
     describe('compressed twice', () => {
-      it('Decompresses stream', (done) => {
+      it('Decompresses stream', async () => {
         const res = fs.createReadStream(file)
           .pipe(zlib.createGzip())
           .pipe(zlib.createDeflate());
@@ -696,17 +693,14 @@ describe('Make a request', () => {
           },
           maxRetries: 0,
         });
-        streamEqual(fs.createReadStream(file), stream, (err, equal) => {
-          assert.ifError(err);
-          assert.ok(equal);
-          scope.done();
-          done();
-        });
+        let equal = await streamEqual(fs.createReadStream(file), stream);
+        assert.ok(equal);
+        scope.done();
       });
     });
 
     describe('compressed incorrectly', () => {
-      it('Emits compression error', (done) => {
+      it('Emits compression error', async () => {
         const res = fs.createReadStream(file)
           .pipe(zlib.createGzip())
           .pipe(zlib.createDeflate());
@@ -725,17 +719,16 @@ describe('Make a request', () => {
             deflate: (): Transform => zlib.createInflate(),
           }
         });
-        streamEqual(fs.createReadStream(file), stream, (err) => {
-          assert.ok(err);
-          assert.equal(err.message, 'incorrect header check');
-          scope.done();
-          done();
-        });
+        await assert.rejects(
+          streamEqual(fs.createReadStream(file), stream),
+          null, 'incorrect header check'
+        );
+        scope.done();
       });
     });
 
     describe('without matching decompressing stream', () => {
-      it('Gets original compressed stream', (done) => {
+      it('Gets original compressed stream', async () => {
         const res = fs.createReadStream(file).pipe(zlib.createGzip());
         const scope = nock('http://yoursite.com', {
           reqheaders: { 'Accept-Encoding': 'deflate' }
@@ -752,12 +745,9 @@ describe('Make a request', () => {
           maxRetries: 0,
         });
         const expected = fs.createReadStream(file).pipe(zlib.createGzip());
-        streamEqual(expected, stream, (err, equal) => {
-          assert.ifError(err);
-          assert.ok(equal);
-          scope.done();
-          done();
-        });
+        let equal = await streamEqual(expected, stream);
+        assert.ok(equal);
+        scope.done();
       });
     });
   });
