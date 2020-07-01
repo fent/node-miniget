@@ -188,7 +188,9 @@ describe('Make a request', () => {
           .reply(302, '', { Location: 'http://yoursite.com/redirect-2' })
           .get('/redirect-2')
           .reply(302, '', { Location: 'http://yoursite.com/redirect-3' });
-        const stream = miniget('http://yoursite.com/first-request');
+        const stream = miniget('http://yoursite.com/first-request', {
+          maxRedirects: 2,
+        });
         stream.on('error', (err) => {
           assert.ok(err);
           scope.done();

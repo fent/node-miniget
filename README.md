@@ -35,7 +35,7 @@ miniget('http://api.mywebsite.com/v1/messages.json')
 
 Makes a GET request. `options` can have any properties from the [`http.request()` function](https://nodejs.org/api/http.html#http_http_request_options_callback), in addition to
 
-* `maxRedirects` - Default is `2`.
+* `maxRedirects` - Default is `10`.
 * `maxRetries` - Number of times to retry the request if there is a 500 or connection error. Default is `1`.
 * `maxReconnects` - During a big download, if there is a disconnect, miniget can try to reconnect and continue the download where it left off. Defaults to `0`.
 * `backoff` - An object with `inc` and `max` used to calculate how long to wait to retry a request. Defaults to `{ inc: 100, max: 10000 }`.

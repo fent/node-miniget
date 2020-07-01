@@ -35,7 +35,7 @@ namespace Miniget {
 }
 
 const defaults: Miniget.Options = {
-  maxRedirects: 2,
+  maxRedirects: 10,
   maxRetries: 2,
   maxReconnects: 0,
   backoff: { inc: 100, max: 10000 },
