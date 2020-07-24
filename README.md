@@ -81,6 +81,16 @@ Emitted when the request fails, or the response has a status code >= 500.
 
 Emitted when the request or response fails after download has started.
 
+#### Event: request
+* [`http.ClientRequest`](https://nodejs.org/api/http.html#http_class_http_clientrequest) - Request.
+
+Emitted when a video request is made, including after any redirects, retries, and reconnects.
+
+#### Event: response
+* [`http.ServerResponse`](https://nodejs.org/api/http.html#http_class_http_serverresponse) - Response.
+
+Emitted when a video response has been found and has started downloading, including after any successful reconnects.
+
 
 # Install
 
