@@ -85,7 +85,7 @@ function Miniget(url: string, options: Miniget.Options = {}): Miniget.Stream {
   };
 
   const reconnectIfEndedEarly = (err?: Error) => {
-    if (!downloadEnded() && reconnects++ < opts.maxReconnects) {
+    if (options.method != 'HEAD' && !downloadEnded() && reconnects++ < opts.maxReconnects) {
       reconnect(err);
       return true;
     }

@@ -753,4 +753,19 @@ describe('Make a request', () => {
       });
     });
   });
+
+  describe('with `method = "HEAD"`', () => {
+    it('Emits `response`', (done) => {
+      const scope = nock('http://hello.net')
+        .head('/world')
+        .reply(200, '', { 'content-length': '10' });
+      const req = miniget('http://hello.net/world', { method: 'HEAD' });
+      req.on('error', done);
+      req.on('response', res => {
+        scope.done();
+        assert.equal(res.headers['content-length'], '10');
+        done();
+      });
+    });
+  });
 });
