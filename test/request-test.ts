@@ -2,20 +2,22 @@ import fs from 'fs';
 import path from 'path';
 import zlib from 'zlib';
 import assert from 'assert';
-import nock from 'nock';
-import lolex from 'lolex';
-import streamEqual from 'stream-equal';
-import miniget from '../dist';
 import { Transform } from 'stream';
 import { IncomingMessage, ClientRequest } from 'http';
+
+import miniget from '../dist';
+
+import nock from 'nock';
+import sinon from 'sinon';
+import streamEqual from 'stream-equal';
 import 'longjohn';
 
 nock.disableNetConnect();
 
 describe('Make a request', () => {
   afterEach(() => { nock.cleanAll(); });
-  let clock: lolex.InstalledClock;
-  beforeEach(() => clock = lolex.install());
+  let clock: sinon.SinonFakeTimers;
+  beforeEach(() => clock = sinon.useFakeTimers());
   afterEach(() => clock.uninstall());
 
   describe('with `.text()`', () => {
@@ -759,13 +761,28 @@ describe('Make a request', () => {
       const scope = nock('http://hello.net')
         .head('/world')
         .reply(200, '', { 'content-length': '10' });
-      const req = miniget('http://hello.net/world', { method: 'HEAD' });
-      req.on('error', done);
-      req.on('response', res => {
+      const stream = miniget('http://hello.net/world', { method: 'HEAD' });
+      stream.on('error', done);
+      stream.on('response', res => {
         scope.done();
         assert.equal(res.headers['content-length'], '10');
         done();
       });
     });
+  });
+
+  it('Events from request and response are forwarded to miniget stream', (done) => {
+    const scope = nock('https://randomhost.com')
+      .get('/randompath')
+      .reply(200, 'hi');
+    const stream = miniget('https://randomhost.com/randompath');
+    const socketSpy = sinon.spy();
+    stream.on('socket', socketSpy);
+    stream.on('end', () => {
+      scope.done();
+      assert.equal(socketSpy.callCount, 1);
+      done();
+    });
+    stream.resume();
   });
 });

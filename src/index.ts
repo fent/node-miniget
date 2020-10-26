@@ -1,4 +1,5 @@
 import { RequestOptions, IncomingMessage, ClientRequest } from 'http';
+import { EventEmitter } from 'events';
 import http from 'http';
 import https from 'https';
 import { parse as urlParse } from 'url';
@@ -12,6 +13,10 @@ const httpLibs: {
 } = { 'http:': http, 'https:': https };
 const redirectStatusCodes = new Set([301, 302, 303, 307, 308]);
 const retryStatusCodes = new Set([429, 503]);
+
+// `request`, `response`, `abort` left out, miniget will emit these.
+const requestEvents = ['connect', 'continue', 'information', 'socket', 'timeout', 'upgrade'];
+const responseEvents = ['aborted', 'close'];
 
 namespace Miniget {
   export interface Options extends RequestOptions {
@@ -119,6 +124,12 @@ function Miniget(url: string, options: Miniget.Options = {}): Miniget.Stream {
     }
   };
 
+  const forwardEvents = (ee: EventEmitter, events: string[]) => {
+    for (let event of events) {
+      ee.on(event, stream.emit.bind(stream, event));
+    }
+  };
+
   const doDownload = (): void => {
     if (aborted) { return; }
     let parsed: RequestOptions, httpLib;
@@ -185,6 +196,7 @@ function Miniget(url: string, options: Miniget.Options = {}): Miniget.Stream {
         }
         return;
       }
+
       let decodedStream = res as unknown as Transform;
       const cleanup = (): void => {
         res.removeListener('data', ondata);
@@ -224,8 +236,10 @@ function Miniget(url: string, options: Miniget.Options = {}): Miniget.Stream {
       activeDecodedStream = decodedStream;
       stream.emit('response', res);
       res.on('error', onerror);
+      forwardEvents(res, responseEvents);
     });
     activeRequest.on('error', onRequestError);
+    forwardEvents(activeRequest, requestEvents);
     stream.emit('request', activeRequest);
   };
 
