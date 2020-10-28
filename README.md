@@ -51,9 +51,13 @@ Defaults are held in `miniget.defaultOptions` and can be adjusted globally.
 
 Miniget returns a readable stream, errors will then be emitted on the stream. Returned stream has additional methods added, and can emit the following events.
 
-### Stream#abort()
+### Stream#destroy([error])
 
-Aborts the request.
+Destroys the request.
+
+### Stream#destroyed
+
+Set to `true` after `Stream#destroy()` has been called.
 
 ### Stream#text()
 

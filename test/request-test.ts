@@ -15,10 +15,13 @@ import 'longjohn';
 nock.disableNetConnect();
 
 describe('Make a request', () => {
-  afterEach(() => { nock.cleanAll(); });
+  afterEach(() => nock.cleanAll());
   let clock: sinon.SinonFakeTimers;
   beforeEach(() => clock = sinon.useFakeTimers());
   afterEach(() => clock.uninstall());
+
+  const stub = sinon.stub(console, 'warn');
+  after(() => stub.restore());
 
   describe('with `.text()`', () => {
     it('Gives entire contents of page', async () => {
@@ -106,8 +109,8 @@ describe('Make a request', () => {
         clock.tick(retryCount * 100);
       });
       stream.on('error', (err) => {
-        assert.equal(err.message, 'Status code: 500');
         scope.done();
+        assert.equal(err.message, 'Status code: 500');
         done();
       });
     });
@@ -373,7 +376,8 @@ describe('Make a request', () => {
     });
 
     const destroy = (req: ClientRequest, res: IncomingMessage): void => {
-      req.abort();
+      req.destroy();
+      // res.destroy();
       res.unpipe();
     };
 
@@ -540,8 +544,7 @@ describe('Make a request', () => {
             destroy(req, res);
           }
         });
-        stream.on('error', (err) => {
-          assert.equal(err.message, 'socket hang up');
+        stream.on('close', () => {
           scope.done();
           assert.equal(reconnects, 2);
           assert.ok(destroyed);
@@ -603,7 +606,7 @@ describe('Make a request', () => {
     });
   });
 
-  describe('that gets aborted', () => {
+  describe('that gets destroyed', () => {
     describe('immediately', () => {
       it('Does not end stream', (done) => {
         nock('http://anime.me')
@@ -615,34 +618,48 @@ describe('Make a request', () => {
         });
         stream.on('abort', done);
         stream.on('error', done);
+        // Use `abort()` until nock fixes emitting events with `destroy()`.
         stream.abort();
       });
     });
-
     describe('after getting response but before end', () => {
-      it('Response does not give any more data', (done) => {
+      it('Response does not give any data', (done) => {
         const scope = nock('http://www.google1.com')
           .get('/one')
           .delayBody(100)
           .reply(200, '<html></html>');
         const stream = miniget('http://www.google1.com/one');
         stream.on('end', () => {
-          throw Error('`end` event should not be called');
+          throw Error('`end` event should not emit');
         });
-        let abortCalled = false;
-        stream.on('abort', () => { abortCalled = true; });
+
         stream.on('data', () => {
           throw Error('Should not read any data');
         });
-        stream.on('error', (err) => {
+        const errorSpy = sinon.spy();
+        stream.on('error', errorSpy);
+        stream.on('close', () => {
           scope.done();
-          assert.ok(abortCalled);
-          assert.equal(err.message, 'socket hang up');
+          assert.ok(!errorSpy.called);
           done();
         });
         stream.on('response', () => {
-          stream.abort();
+          stream.destroy();
         });
+      });
+    });
+
+    describe('using `abort()`', () => {
+      it('Emits `abort` and does not end stream', (done) => {
+        nock('http://anime.me')
+          .get('/')
+          .reply(200, 'ooooaaaaaaaeeeee');
+        const stream = miniget('http://anime.me');
+        stream.on('end', () => {
+          throw Error('`end` event should not be called');
+        });
+        stream.on('abort', done);
+        stream.abort();
       });
     });
   });
