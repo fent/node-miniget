@@ -29,17 +29,26 @@ namespace Miniget {
     acceptEncoding?: { [key: string]: () => Transform };
   }
 
+  export type Defaults = Miniget.Options;
+  export type MinigetError = Error;
+
   export interface Stream extends PassThrough {
     abort: () => void;
     text: () => Promise<string>;
-    on(event: 'reconnect', listener: (attempt: number, err?: Error) => void): this;
-    on(event: 'retry', listener: (attempt: number, err?: Error) => void): this;
+    on(event: 'reconnect', listener: (attempt: number, err?: Miniget.MinigetError) => void): this;
+    on(event: 'retry', listener: (attempt: number, err?: Miniget.MinigetError) => void): this;
     on(event: 'redirect', listener: (url: string) => void): this;
     on(event: string | symbol, listener: (...args: any) => void): this;
   }
 }
 
-const defaults: Miniget.Options = {
+Miniget.MinigetError = class MinigetError extends Error {
+  constructor(message: string) {
+    super(message);
+  }
+};
+
+Miniget.Defaults = Miniget.Options = {
   maxRedirects: 10,
   maxRetries: 2,
   maxReconnects: 0,
@@ -47,7 +56,7 @@ const defaults: Miniget.Options = {
 };
 
 function Miniget(url: string, options: Miniget.Options = {}): Miniget.Stream {
-  const opts: Miniget.Options = Object.assign({}, defaults, options);
+  const opts: Miniget.Options = Object.assign({}, Miniget.Defaults, options);
   const stream = new PassThrough({ highWaterMark: opts.highWaterMark }) as Miniget.Stream;
   let activeRequest: ClientRequest | null;
   let activeDecodedStream: Transform | null;
@@ -80,7 +89,7 @@ function Miniget(url: string, options: Miniget.Options = {}): Miniget.Stream {
   const downloadHasStarted = () => activeDecodedStream && 0 < downloaded;
   const downloadEnded = () => !acceptRanges || downloaded == contentLength;
 
-  const reconnect = (err?: Error) => {
+  const reconnect = (err?: Miniget.MinigetError) => {
     activeDecodedStream = null;
     retries = 0;
     let inc = opts.backoff.inc;
@@ -89,7 +98,7 @@ function Miniget(url: string, options: Miniget.Options = {}): Miniget.Stream {
     stream.emit('reconnect', reconnects, err);
   };
 
-  const reconnectIfEndedEarly = (err?: Error) => {
+  const reconnectIfEndedEarly = (err?: Miniget.MinigetError) => {
     if (options.method != 'HEAD' && !downloadEnded() && reconnects++ < opts.maxReconnects) {
       reconnect(err);
       return true;
@@ -99,7 +108,7 @@ function Miniget(url: string, options: Miniget.Options = {}): Miniget.Stream {
 
   interface RetryOptions {
     statusCode?: number;
-    err?: Error;
+    err?: Miniget.MinigetError;
     retryAfter?: number;
   }
   const retryRequest = (retryOptions: RetryOptions): boolean => {
@@ -118,7 +127,7 @@ function Miniget(url: string, options: Miniget.Options = {}): Miniget.Stream {
     return false;
   };
 
-  const onRequestError = (err: Error, statusCode?: number): void => {
+  const onRequestError = (err: Miniget.MinigetError, statusCode?: number): void => {
     if (!retryRequest({ err, statusCode })) {
       stream.emit('error', err);
     }
@@ -140,7 +149,7 @@ function Miniget(url: string, options: Miniget.Options = {}): Miniget.Stream {
       // Let the error be caught by the if statement below.
     }
     if (!httpLib) {
-      stream.emit('error', Error('Invalid URL: ' + url));
+      stream.emit('error', new Miniget.MinigetError('Invalid URL: ' + url));
       return;
     }
 
@@ -163,7 +172,7 @@ function Miniget(url: string, options: Miniget.Options = {}): Miniget.Stream {
       if (!parsed || parsed.protocol) {
         httpLib = httpLibs[parsed?.protocol];
         if (!httpLib) {
-          stream.emit('error', Error('Invalid URL object from `transform` function'));
+          stream.emit('error', new Miniget.MinigetError('Invalid URL object from `transform` function'));
           return;
         }
       }
@@ -172,7 +181,7 @@ function Miniget(url: string, options: Miniget.Options = {}): Miniget.Stream {
     activeRequest = httpLib.get(parsed, (res: IncomingMessage) => {
       if (redirectStatusCodes.has(res.statusCode)) {
         if (redirects++ >= opts.maxRedirects) {
-          stream.emit('error', Error('Too many redirects'));
+          stream.emit('error', new Miniget.MinigetError('Too many redirects'));
         } else {
           url = res.headers.location;
           setTimeout(doDownload, res.headers['retry-after'] ? parseInt(res.headers['retry-after'], 10) * 1000: 0);
@@ -183,12 +192,12 @@ function Miniget(url: string, options: Miniget.Options = {}): Miniget.Stream {
         // Check for rate limiting.
       } else if (retryStatusCodes.has(res.statusCode)) {
         if (!retryRequest({ retryAfter: parseInt(res.headers['retry-after'], 10) })) {
-          let err = Error('Status code: ' + res.statusCode);
+          let err = new Miniget.MinigetError('Status code: ' + res.statusCode);
           stream.emit('error', err);
         }
         return;
       } else if (res.statusCode < 200 || 400 <= res.statusCode) {
-        let err = Error('Status code: ' + res.statusCode);
+        let err = new Miniget.MinigetError('Status code: ' + res.statusCode);
         if (res.statusCode >= 500) {
           onRequestError(err, res.statusCode);
         } else {
@@ -211,7 +220,7 @@ function Miniget(url: string, options: Miniget.Options = {}): Miniget.Stream {
           stream.end();
         }
       };
-      const onerror = (err: Error): void => {
+      const onerror = (err: Miniget.MinigetError): void => {
         cleanup();
         onRequestError(err);
       };
