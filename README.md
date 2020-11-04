@@ -47,11 +47,7 @@ Makes a GET request. `options` can have any properties from the [`http.request()
   ```
   Given encodings will be added to the `Accept-Encoding` header, and the response will be decoded if the server responds with encoded content.
 
-If you'd like a concatenated response, use `miniget(url).text()`.
-
-```js
-let body = await miniget('http://yourwebsite.com').text();
-```
+Defaults are held in `miniget.defaultOptions` and can be adjusted globally.
 
 Miniget returns a readable stream, errors will then be emitted on the stream. Returned stream has additional methods added, and can emit the following events.
 
@@ -62,6 +58,10 @@ Aborts the request.
 ### Stream#text()
 
 Returns a promise that resolves to the concatenated contents of the response.
+
+```js
+let body = await miniget('http://yourwebsite.com').text();
+```
 
 #### Event: redirect
 * `string` - URL redirected to.

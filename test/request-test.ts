@@ -786,3 +786,12 @@ describe('Make a request', () => {
     stream.resume();
   });
 });
+
+describe('Importing the module', () => {
+  it('Exposes default options', () => {
+    assert.ok(miniget.defaultOptions);
+  });
+  it('Exposes MinigetError', () => {
+    assert.ok(miniget.MinigetError);
+  });
+});

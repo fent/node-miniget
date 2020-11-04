@@ -29,7 +29,7 @@ namespace Miniget {
     acceptEncoding?: { [key: string]: () => Transform };
   }
 
-  export type Defaults = Miniget.Options;
+  export type defaultOptions = Miniget.Options;
   export type MinigetError = Error;
 
   export interface Stream extends PassThrough {
@@ -48,7 +48,7 @@ Miniget.MinigetError = class MinigetError extends Error {
   }
 };
 
-Miniget.Defaults = Miniget.Options = {
+Miniget.defaultOptions = {
   maxRedirects: 10,
   maxRetries: 2,
   maxReconnects: 0,
@@ -56,7 +56,7 @@ Miniget.Defaults = Miniget.Options = {
 };
 
 function Miniget(url: string, options: Miniget.Options = {}): Miniget.Stream {
-  const opts: Miniget.Options = Object.assign({}, Miniget.Defaults, options);
+  const opts: Miniget.Options = Object.assign({}, Miniget.defaultOptions, options);
   const stream = new PassThrough({ highWaterMark: opts.highWaterMark }) as Miniget.Stream;
   let activeRequest: ClientRequest | null;
   let activeDecodedStream: Transform | null;
