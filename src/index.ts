@@ -16,7 +16,7 @@ const retryStatusCodes = new Set([429, 503]);
 
 // `request`, `response`, `abort`, `close` left out, miniget will emit these.
 const requestEvents = ['connect', 'continue', 'information', 'socket', 'timeout', 'upgrade'];
-const responseEvents = ['aborted', 'close'];
+const responseEvents = ['aborted'];
 
 namespace Miniget {
   export interface Options extends RequestOptions {
@@ -63,6 +63,7 @@ function Miniget(url: string, options: Miniget.Options = {}): Miniget.Stream {
   const stream = new PassThrough({ highWaterMark: opts.highWaterMark }) as Miniget.Stream;
   stream.destroyed = stream.aborted = false;
   let activeRequest: ClientRequest | null;
+  let activeResponse: IncomingMessage | null;
   let activeDecodedStream: Transform | null;
   let redirects = 0;
   let retries = 0;
@@ -130,22 +131,6 @@ function Miniget(url: string, options: Miniget.Options = {}): Miniget.Stream {
     return false;
   };
 
-  const onRequestError = (err: Miniget.MinigetError, statusCode?: number): void => {
-    activeRequest.removeListener('close', onRequestError);
-    if (!retryRequest({ err, statusCode })) {
-      stream.emit('error', err);
-    }
-  };
-
-  const noop = () => {};
-  const onRequestClose = () => {
-    activeRequest.removeListener('error', onRequestError);
-    activeRequest.on('error', noop);
-    if (!retryRequest({})) {
-      stream.emit('close');
-    }
-  };
-
   const forwardEvents = (ee: EventEmitter, events: string[]) => {
     for (let event of events) {
       ee.on(event, stream.emit.bind(stream, event));
@@ -190,7 +175,41 @@ function Miniget(url: string, options: Miniget.Options = {}): Miniget.Stream {
       }
     }
 
+    const onError = (err: Miniget.MinigetError, statusCode?: number): void => {
+      cleanup();
+      if (!retryRequest({ err, statusCode })) {
+        stream.emit('error', err);
+      } else {
+        activeRequest.removeListener('close', onRequestClose);
+      }
+    };
+
+    const onRequestClose = () => {
+      cleanup();
+      if (!retryRequest({})) {
+        stream.emit('close');
+      }
+    };
+
+    const cleanup = () => {
+      activeRequest.removeListener('error', onError);
+      activeResponse?.removeListener('data', onData);
+      activeDecodedStream?.removeListener('end', onEnd);
+      activeDecodedStream?.removeListener('error', onError);
+      activeResponse?.removeListener('error', onError);
+    };
+
+    const onData = (chunk: Buffer) => { downloaded += chunk.length; };
+    const onEnd = () => {
+      cleanup();
+      if (!reconnectIfEndedEarly()) {
+        stream.end();
+      }
+    };
+
     activeRequest = httpLib.get(parsed, (res: IncomingMessage) => {
+      // Needed for node v10, v12.
+      // istanbul ignore next
       if (stream.destroyed) { return; }
       if (redirectStatusCodes.has(res.statusCode)) {
         if (redirects++ >= opts.maxRedirects) {
@@ -212,7 +231,7 @@ function Miniget(url: string, options: Miniget.Options = {}): Miniget.Stream {
       } else if (res.statusCode < 200 || 400 <= res.statusCode) {
         let err = new Miniget.MinigetError('Status code: ' + res.statusCode);
         if (res.statusCode >= 500) {
-          onRequestError(err, res.statusCode);
+          onError(err, res.statusCode);
         } else {
           stream.emit('error', err);
         }
@@ -220,30 +239,12 @@ function Miniget(url: string, options: Miniget.Options = {}): Miniget.Stream {
       }
 
       let decodedStream = res as unknown as Transform;
-      const cleanup = () => {
-        res.removeListener('data', ondata);
-        decodedStream.removeListener('end', onend);
-        decodedStream.removeListener('error', onerror);
-        res.removeListener('error', onerror);
-      };
-      const ondata = (chunk: Buffer) => { downloaded += chunk.length; };
-      const onend = () => {
-        cleanup();
-        if (!reconnectIfEndedEarly()) {
-          stream.end();
-        }
-      };
-      const onerror = (err: Miniget.MinigetError) => {
-        cleanup();
-        onRequestError(err);
-      };
-
       if (opts.acceptEncoding && res.headers['content-encoding']) {
         for (let enc of res.headers['content-encoding'].split(', ').reverse()) {
           let fn = opts.acceptEncoding[enc];
           if (fn != null) {
             decodedStream = decodedStream.pipe(fn());
-            decodedStream.on('error', onerror);
+            decodedStream.on('error', onError);
           }
         }
       }
@@ -252,16 +253,16 @@ function Miniget(url: string, options: Miniget.Options = {}): Miniget.Stream {
         acceptRanges = res.headers['accept-ranges'] === 'bytes' &&
           contentLength > 0 && opts.maxReconnects > 0;
       }
-      res.on('data', ondata);
-      decodedStream.on('end', onend);
+      res.on('data', onData);
+      decodedStream.on('end', onEnd);
       decodedStream.pipe(stream, { end: !acceptRanges });
+      activeResponse = res;
       activeDecodedStream = decodedStream;
       stream.emit('response', res);
-      res.on('error', onerror);
+      res.on('error', onError);
       forwardEvents(res, responseEvents);
     });
-    activeRequest.removeListener('error', noop);
-    activeRequest.on('error', onRequestError);
+    activeRequest.on('error', onError);
     activeRequest.on('close', onRequestClose);
     forwardEvents(activeRequest, requestEvents);
     if (stream.destroyed) {

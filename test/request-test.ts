@@ -104,9 +104,10 @@ describe('Make a request', () => {
         .get('/path')
         .reply(500, 'oh no 3');
       const stream = miniget('https://mysite.com/path');
-      stream.on('request', () => { clock.tick(1); });
       stream.on('retry', (retryCount) => {
-        clock.tick(retryCount * 100);
+        process.nextTick(() => {
+          clock.tick(retryCount * 100);
+        });
       });
       stream.on('error', (err) => {
         scope.done();
@@ -608,7 +609,7 @@ describe('Make a request', () => {
 
   describe('that gets destroyed', () => {
     describe('immediately', () => {
-      it('Does not end stream', (done) => {
+      it('Does not end stream', () => {
         nock('http://anime.me')
           .get('/')
           .reply(200, 'ooooaaaaaaaeeeee');
@@ -616,13 +617,37 @@ describe('Make a request', () => {
         stream.on('end', () => {
           throw Error('`end` event should not be called');
         });
-        stream.on('abort', done);
-        stream.on('error', done);
-        // Use `abort()` until nock fixes emitting events with `destroy()`.
-        stream.abort();
+        stream.on('error', () => {
+          // Ignore error on node v10, 12.
+        });
+        stream.destroy();
       });
     });
-    describe('after getting response but before end', () => {
+    describe('after getting `request`', () => {
+      it('Does not start download, no `response` event', done => {
+        nock('https://friend.com')
+          .get('/yes')
+          .reply(200, '<html>my reply :)</html>');
+        const stream = miniget('https://friend.com/yes');
+        stream.on('end', () => {
+          throw Error('`end` event should not emit');
+        });
+        stream.on('response', () => {
+          throw Error('`response` event should not emit');
+        });
+        stream.on('data', () => {
+          throw Error('Should not read any data');
+        });
+        stream.on('error', () => {
+          // Ignore error on node v10, 12.
+        });
+        stream.on('request', () => {
+          stream.destroy();
+          done();
+        });
+      });
+    });
+    describe('after getting `response` but before end', () => {
       it('Response does not give any data', (done) => {
         const scope = nock('http://www.google1.com')
           .get('/one')
@@ -657,6 +682,9 @@ describe('Make a request', () => {
         const stream = miniget('http://anime.me');
         stream.on('end', () => {
           throw Error('`end` event should not be called');
+        });
+        stream.on('error', () => {
+          // Ignore error on node v10, 12.
         });
         stream.on('abort', done);
         stream.abort();
