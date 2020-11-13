@@ -54,14 +54,11 @@ describe('Make a request', () => {
         .replyWithFile(200, __filename);
       const stream = miniget('http://website.com/path');
       stream.on('error', done);
-      stream.on('response', (res) => {
-        res.on('error', done);
-        res.on('end', () => {
-          scope.done();
-          done();
-        });
-        res.resume();
+      stream.on('end', () => {
+        scope.done();
+        done();
       });
+      stream.resume();
     });
   });
 
