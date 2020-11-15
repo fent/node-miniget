@@ -2,7 +2,7 @@
 
 A small http(s) GET library with redirects, retries, reconnects, concatenating or streaming, and no dependencies. This keeps filesize small for potential browser use.
 
-[![Dependency Status](https://david-dm.org/fent/node-miniget.svg)](https://david-dm.org/fent/node-miniget)
+![Depfu](https://img.shields.io/depfu/fent/node-miniget)
 [![codecov](https://codecov.io/gh/fent/node-miniget/branch/master/graph/badge.svg)](https://codecov.io/gh/fent/node-miniget)
 
 
