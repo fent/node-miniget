@@ -109,6 +109,7 @@ describe('Make a request', () => {
       stream.on('error', (err) => {
         scope.done();
         assert.equal(err.message, 'Status code: 500');
+        assert.equal(err.statusCode, 500);
         done();
       });
     });
@@ -262,6 +263,7 @@ describe('Make a request', () => {
         assert.ok(err);
         scope.done();
         assert.equal(err.message, 'Status code: 429');
+        assert.equal(err.statusCode, 429);
         done();
       });
       stream.on('retry', () => {

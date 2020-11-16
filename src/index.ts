@@ -46,8 +46,10 @@ namespace Miniget {
 }
 
 Miniget.MinigetError = class MinigetError extends Error {
-  constructor(message: string) {
+  public statusCode: number;
+  constructor(message: string, statusCode?: number) {
     super(message);
+    this.statusCode = statusCode;
   }
 };
 
@@ -224,12 +226,12 @@ function Miniget(url: string, options: Miniget.Options = {}): Miniget.Stream {
         // Check for rate limiting.
       } else if (retryStatusCodes.has(res.statusCode)) {
         if (!retryRequest({ retryAfter: parseInt(res.headers['retry-after'], 10) })) {
-          let err = new Miniget.MinigetError('Status code: ' + res.statusCode);
+          let err = new Miniget.MinigetError('Status code: ' + res.statusCode, res.statusCode);
           stream.emit('error', err);
         }
         return;
       } else if (res.statusCode < 200 || 400 <= res.statusCode) {
-        let err = new Miniget.MinigetError('Status code: ' + res.statusCode);
+        let err = new Miniget.MinigetError('Status code: ' + res.statusCode, res.statusCode);
         if (res.statusCode >= 500) {
           onError(err, res.statusCode);
         } else {
