@@ -758,6 +758,7 @@ describe('Make a request', () => {
           .get('/compressedfile')
           .reply(200, res, {
             'content-length': filesize + '',
+            // Encoding is in reverse order.
             'content-encoding': 'deflate, gzip',
           });
         const stream = miniget('http://yoursite.com/compressedfile', {
@@ -796,6 +797,42 @@ describe('Make a request', () => {
         let equal = await streamEqual(expected, stream);
         assert.ok(equal);
         scope.done();
+      });
+    });
+
+    describe('destroy mid-stream', () => {
+      it('Stops stream without error', (done) => {
+        const res = fs.createReadStream(file)
+          .pipe(zlib.createGzip())
+          .pipe(zlib.createDeflate());
+        const scope = nock('http://yoursite.com', {
+          reqheaders: { 'Accept-Encoding': 'gzip, deflate' }
+        })
+          .get('/compressedfile')
+          .reply(200, res, {
+            'content-length': filesize + '',
+            'content-encoding': 'gzip, deflate',
+          });
+        const stream = miniget('http://yoursite.com/compressedfile', {
+          acceptEncoding: {
+            gzip: (): Transform => zlib.createGunzip(),
+            deflate: (): Transform => zlib.createInflate(),
+          },
+          maxRetries: 0,
+        });
+        stream.on('error', done);
+        stream.resume();
+        let downloaded = 0;
+        stream.on('data', chunk => {
+          downloaded += chunk.length;
+          if (downloaded / filesize > 0.5) {
+            stream.destroy();
+          }
+        });
+        stream.on('close', () => {
+          scope.done();
+          done();
+        });
       });
     });
   });

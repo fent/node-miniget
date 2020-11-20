@@ -240,13 +240,13 @@ function Miniget(url: string, options: Miniget.Options = {}): Miniget.Stream {
         return;
       }
 
-      let decodedStream = res as unknown as Transform;
+      activeDecodedStream = res as unknown as Transform;
       if (opts.acceptEncoding && res.headers['content-encoding']) {
         for (let enc of res.headers['content-encoding'].split(', ').reverse()) {
           let fn = opts.acceptEncoding[enc];
           if (fn != null) {
-            decodedStream = decodedStream.pipe(fn());
-            decodedStream.on('error', onError);
+            activeDecodedStream = activeDecodedStream.pipe(fn());
+            activeDecodedStream.on('error', onError);
           }
         }
       }
@@ -256,10 +256,9 @@ function Miniget(url: string, options: Miniget.Options = {}): Miniget.Stream {
           contentLength > 0 && opts.maxReconnects > 0;
       }
       res.on('data', onData);
-      decodedStream.on('end', onEnd);
-      decodedStream.pipe(stream, { end: !acceptRanges });
+      activeDecodedStream.on('end', onEnd);
+      activeDecodedStream.pipe(stream, { end: !acceptRanges });
       activeResponse = res;
-      activeDecodedStream = decodedStream;
       stream.emit('response', res);
       res.on('error', onError);
       forwardEvents(res, responseEvents);
@@ -283,7 +282,7 @@ function Miniget(url: string, options: Miniget.Options = {}): Miniget.Stream {
   let destroyErr: Error;
   const streamDestroy = (err?: Error) => {
     activeRequest.destroy(err);
-    activeDecodedStream?.unpipe(stream);
+    activeDecodedStream?.destroy();
     clearTimeout(retryTimeout);
   };
 
