@@ -195,6 +195,7 @@ function Miniget(url: string, options: Miniget.Options = {}): Miniget.Stream {
 
     const cleanup = () => {
       activeRequest.removeListener('error', onError);
+      activeRequest.removeListener('close', onRequestClose);
       activeResponse?.removeListener('data', onData);
       activeDecodedStream?.removeListener('end', onEnd);
       activeDecodedStream?.removeListener('error', onError);
@@ -221,7 +222,7 @@ function Miniget(url: string, options: Miniget.Options = {}): Miniget.Stream {
           setTimeout(doDownload, res.headers['retry-after'] ? parseInt(res.headers['retry-after'], 10) * 1000: 0);
           stream.emit('redirect', url);
         }
-        return;
+        return cleanup();
 
         // Check for rate limiting.
       } else if (retryStatusCodes.has(res.statusCode)) {
@@ -229,7 +230,7 @@ function Miniget(url: string, options: Miniget.Options = {}): Miniget.Stream {
           let err = new Miniget.MinigetError('Status code: ' + res.statusCode, res.statusCode);
           stream.emit('error', err);
         }
-        return;
+        return cleanup();
       } else if (res.statusCode < 200 || 400 <= res.statusCode) {
         let err = new Miniget.MinigetError('Status code: ' + res.statusCode, res.statusCode);
         if (res.statusCode >= 500) {
@@ -237,7 +238,7 @@ function Miniget(url: string, options: Miniget.Options = {}): Miniget.Stream {
         } else {
           stream.emit('error', err);
         }
-        return;
+        return cleanup();
       }
 
       activeDecodedStream = res as unknown as Transform;
