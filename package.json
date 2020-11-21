@@ -27,7 +27,7 @@
   "dependencies": {},
   "devDependencies": {
     "@types/mocha": "^7.0.0",
-    "@types/node": "^13.1.0",
+    "@types/node": "^14.14.9",
     "@types/sinon": "^9.0.8",
     "longjohn": "^0.2.12",
     "mocha": "^7.0.1",
