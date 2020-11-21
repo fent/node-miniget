@@ -93,7 +93,7 @@ function Miniget(url: string, options: Miniget.Options = {}): Miniget.Stream {
   }
 
   const downloadHasStarted = () => activeDecodedStream && 0 < downloaded;
-  const downloadEnded = () => !acceptRanges || downloaded == contentLength;
+  const downloadComplete = () => !acceptRanges || downloaded == contentLength;
 
   const reconnect = (err?: Miniget.MinigetError) => {
     activeDecodedStream = null;
@@ -105,7 +105,7 @@ function Miniget(url: string, options: Miniget.Options = {}): Miniget.Stream {
   };
 
   const reconnectIfEndedEarly = (err?: Miniget.MinigetError) => {
-    if (options.method != 'HEAD' && !downloadEnded() && reconnects++ < opts.maxReconnects) {
+    if (options.method != 'HEAD' && !downloadComplete() && reconnects++ < opts.maxReconnects) {
       reconnect(err);
       return true;
     }
