@@ -533,6 +533,7 @@ describe('Make a request', () => {
           downloaded += chunk.length;
           if (downloaded / filesize >= 0.3) {
             destroyed = true;
+            destroy(req, res);
             if (reconnects < 2) {
               scope.get('/myfile')
                 .reply(206, () => fs.createReadStream(file, { start: downloaded }), {
@@ -540,20 +541,18 @@ describe('Make a request', () => {
                   'content-length': `${filesize - downloaded}`,
                   'accept-ranges': 'bytes',
                 });
+            } else {
+              scope.done();
+              assert.equal(reconnects, 2);
+              assert.ok(destroyed);
+              assert.notEqual(downloaded, filesize);
+              done();
             }
-            destroy(req, res);
           }
-        });
-        stream.on('close', () => {
-          scope.done();
-          assert.equal(reconnects, 2);
-          assert.ok(destroyed);
-          assert.notEqual(downloaded, filesize);
-          done();
         });
         stream.on('end', () => {
           // Does fire in node v12
-          // throw Error('should not end');
+          // done(Error('should not end'));
         });
       });
     });
@@ -608,34 +607,35 @@ describe('Make a request', () => {
 
   describe('that gets destroyed', () => {
     describe('immediately', () => {
-      it('Does not end stream', () => {
+      it('Does not end stream', (done) => {
         nock('http://anime.me')
           .get('/')
           .reply(200, 'ooooaaaaaaaeeeee');
         const stream = miniget('http://anime.me');
         stream.on('end', () => {
-          throw Error('`end` event should not be called');
+          done(Error('`end` event should not be called'));
         });
         stream.on('error', () => {
           // Ignore error on node v10, 12.
         });
         stream.destroy();
+        done();
       });
     });
     describe('after getting `request`', () => {
-      it('Does not start download, no `response` event', done => {
+      it('Does not start download, no `response` event', (done) => {
         nock('https://friend.com')
           .get('/yes')
           .reply(200, '<html>my reply :)</html>');
         const stream = miniget('https://friend.com/yes');
         stream.on('end', () => {
-          throw Error('`end` event should not emit');
+          done(Error('`end` event should not emit'));
         });
         stream.on('response', () => {
-          throw Error('`response` event should not emit');
+          done(Error('`response` event should not emit'));
         });
         stream.on('data', () => {
-          throw Error('Should not read any data');
+          done(Error('Should not read any data'));
         });
         stream.on('error', () => {
           // Ignore error on node v10, 12.
@@ -648,27 +648,27 @@ describe('Make a request', () => {
     });
     describe('after getting `response` but before end', () => {
       it('Response does not give any data', (done) => {
+        const file = path.resolve(__dirname, 'video.flv');
         const scope = nock('http://www.google1.com')
           .get('/one')
           .delayBody(100)
-          .reply(200, '<html></html>');
+          .replyWithFile(200, file);
         const stream = miniget('http://www.google1.com/one');
         stream.on('end', () => {
-          throw Error('`end` event should not emit');
+          console.trace();
+          done(Error('`end` event should not emit'));
         });
 
         stream.on('data', () => {
-          throw Error('Should not read any data');
+          done(Error('Should not read any data'));
         });
         const errorSpy = sinon.spy();
         stream.on('error', errorSpy);
-        stream.on('close', () => {
+        stream.on('response', () => {
+          stream.destroy();
           scope.done();
           assert.ok(!errorSpy.called);
           done();
-        });
-        stream.on('response', () => {
-          stream.destroy();
         });
       });
     });
@@ -680,7 +680,7 @@ describe('Make a request', () => {
           .reply(200, 'ooooaaaaaaaeeeee');
         const stream = miniget('http://anime.me');
         stream.on('end', () => {
-          throw Error('`end` event should not be called');
+          done(Error('`end` event should not be called'));
         });
         stream.on('error', () => {
           // Ignore error on node v10, 12.
@@ -827,11 +827,9 @@ describe('Make a request', () => {
           downloaded += chunk.length;
           if (downloaded / filesize > 0.5) {
             stream.destroy();
+            scope.done();
+            done();
           }
-        });
-        stream.on('close', () => {
-          scope.done();
-          done();
         });
       });
     });

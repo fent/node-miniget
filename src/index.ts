@@ -14,7 +14,7 @@ const httpLibs: {
 const redirectStatusCodes = new Set([301, 302, 303, 307, 308]);
 const retryStatusCodes = new Set([429, 503]);
 
-// `request`, `response`, `abort`, `close` left out, miniget will emit these.
+// `request`, `response`, `abort`, left out, miniget will emit these.
 const requestEvents = ['connect', 'continue', 'information', 'socket', 'timeout', 'upgrade'];
 const responseEvents = ['aborted'];
 
@@ -188,9 +188,7 @@ function Miniget(url: string, options: Miniget.Options = {}): Miniget.Stream {
 
     const onRequestClose = () => {
       cleanup();
-      if (!retryRequest({})) {
-        stream.emit('close');
-      }
+      retryRequest({});
     };
 
     const cleanup = () => {
@@ -203,6 +201,7 @@ function Miniget(url: string, options: Miniget.Options = {}): Miniget.Stream {
     };
 
     const onData = (chunk: Buffer) => { downloaded += chunk.length; };
+
     const onEnd = () => {
       cleanup();
       if (!reconnectIfEndedEarly()) {
@@ -283,6 +282,7 @@ function Miniget(url: string, options: Miniget.Options = {}): Miniget.Stream {
   let destroyErr: Error;
   const streamDestroy = (err?: Error) => {
     activeRequest.destroy(err);
+    activeDecodedStream?.unpipe(stream);
     activeDecodedStream?.destroy();
     clearTimeout(retryTimeout);
   };
