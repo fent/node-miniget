@@ -209,7 +209,7 @@ function Miniget(url: string, options: Miniget.Options = {}): Miniget.Stream {
       }
     };
 
-    activeRequest = httpLib.get(parsed, (res: IncomingMessage) => {
+    activeRequest = httpLib.request(parsed, (res: IncomingMessage) => {
       // Needed for node v10, v12.
       // istanbul ignore next
       if (stream.destroyed) { return; }
@@ -263,6 +263,8 @@ function Miniget(url: string, options: Miniget.Options = {}): Miniget.Stream {
       res.on('error', onError);
       forwardEvents(res, responseEvents);
     });
+    activeRequest.emit('request', activeRequest);
+    activeRequest.end();
     activeRequest.on('error', onError);
     activeRequest.on('close', onRequestClose);
     forwardEvents(activeRequest, requestEvents);
