@@ -8,7 +8,7 @@ import { PassThrough, Transform } from 'stream';
 
 const httpLibs: {
   [key: string]: {
-    get: (options: RequestOptions | string | URL, callback?: (res: IncomingMessage) => void) => ClientRequest;
+    request: (options: RequestOptions | string | URL, callback?: (res: IncomingMessage) => void) => ClientRequest;
   };
 } = { 'http:': http, 'https:': https };
 const redirectStatusCodes = new Set([301, 302, 303, 307, 308]);
@@ -209,7 +209,7 @@ function Miniget(url: string, options: Miniget.Options = {}): Miniget.Stream {
       }
     };
 
-    activeRequest = httpLib.get(parsed, (res: IncomingMessage) => {
+    activeRequest = httpLib.request(parsed, (res: IncomingMessage) => {
       // Needed for node v10, v12.
       // istanbul ignore next
       if (stream.destroyed) { return; }
@@ -270,6 +270,7 @@ function Miniget(url: string, options: Miniget.Options = {}): Miniget.Stream {
       streamDestroy(destroyErr);
     }
     stream.emit('request', activeRequest);
+    activeRequest.end();
   };
 
   stream.abort = (err?: Error) => {
