@@ -8,7 +8,7 @@ import { PassThrough, Transform } from 'stream';
 
 const httpLibs: {
   [key: string]: {
-    get: (options: RequestOptions | string | URL, callback?: (res: IncomingMessage) => void) => ClientRequest;
+    request: (options: RequestOptions | string | URL, callback?: (res: IncomingMessage) => void) => ClientRequest;
   };
 } = { 'http:': http, 'https:': https };
 const redirectStatusCodes = new Set([301, 302, 303, 307, 308]);
