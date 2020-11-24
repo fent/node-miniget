@@ -263,8 +263,6 @@ function Miniget(url: string, options: Miniget.Options = {}): Miniget.Stream {
       res.on('error', onError);
       forwardEvents(res, responseEvents);
     });
-    activeRequest.emit('request', activeRequest);
-    activeRequest.end();
     activeRequest.on('error', onError);
     activeRequest.on('close', onRequestClose);
     forwardEvents(activeRequest, requestEvents);
@@ -272,6 +270,7 @@ function Miniget(url: string, options: Miniget.Options = {}): Miniget.Stream {
       streamDestroy(destroyErr);
     }
     stream.emit('request', activeRequest);
+    activeRequest.end();
   };
 
   stream.abort = (err?: Error) => {
