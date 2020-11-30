@@ -1,6 +1,5 @@
-import { RequestOptions, IncomingMessage, ClientRequest } from 'http';
+import { RequestOptions, IncomingMessage, ClientRequest, default as http } from 'http';
 import { EventEmitter } from 'events';
-import http from 'http';
 import https from 'https';
 import { parse as urlParse } from 'url';
 import { PassThrough, Transform } from 'stream';
@@ -78,7 +77,7 @@ function Miniget(url: string, options: Miniget.Options = {}): Miniget.Stream {
 
   // Check if this is a ranged request.
   if (opts.headers?.Range) {
-    let r = /bytes=(\d+)-(\d+)?/.exec(opts.headers.Range + '');
+    let r = /bytes=(\d+)-(\d+)?/.exec(`${opts.headers.Range}`);
     if (r) {
       rangeStart = parseInt(r[1], 10);
       rangeEnd = parseInt(r[2], 10);
@@ -88,12 +87,12 @@ function Miniget(url: string, options: Miniget.Options = {}): Miniget.Stream {
   // Add `Accept-Encoding` header.
   if (opts.acceptEncoding) {
     opts.headers = Object.assign({
-      'Accept-Encoding': Object.keys(opts.acceptEncoding).join(', ')
+      'Accept-Encoding': Object.keys(opts.acceptEncoding).join(', '),
     }, opts.headers);
   }
 
-  const downloadHasStarted = () => activeDecodedStream && 0 < downloaded;
-  const downloadComplete = () => !acceptRanges || downloaded == contentLength;
+  const downloadHasStarted = () => activeDecodedStream && downloaded > 0;
+  const downloadComplete = () => !acceptRanges || downloaded === contentLength;
 
   const reconnect = (err?: Miniget.MinigetError) => {
     activeDecodedStream = null;
@@ -105,7 +104,7 @@ function Miniget(url: string, options: Miniget.Options = {}): Miniget.Stream {
   };
 
   const reconnectIfEndedEarly = (err?: Miniget.MinigetError) => {
-    if (options.method != 'HEAD' && !downloadComplete() && reconnects++ < opts.maxReconnects) {
+    if (options.method !== 'HEAD' && !downloadComplete() && reconnects++ < opts.maxReconnects) {
       reconnect(err);
       return true;
     }
@@ -148,7 +147,7 @@ function Miniget(url: string, options: Miniget.Options = {}): Miniget.Stream {
       // Let the error be caught by the if statement below.
     }
     if (!httpLib) {
-      stream.emit('error', new Miniget.MinigetError('Invalid URL: ' + url));
+      stream.emit('error', new Miniget.MinigetError(`Invalid URL: ${url}`));
       return;
     }
 
@@ -157,7 +156,7 @@ function Miniget(url: string, options: Miniget.Options = {}): Miniget.Stream {
       let start = downloaded + rangeStart;
       let end = rangeEnd || '';
       parsed.headers = Object.assign({}, parsed.headers, {
-        Range: `bytes=${start}-${end}`
+        Range: `bytes=${start}-${end}`,
       });
     }
 
@@ -218,40 +217,43 @@ function Miniget(url: string, options: Miniget.Options = {}): Miniget.Stream {
           stream.emit('error', new Miniget.MinigetError('Too many redirects'));
         } else {
           url = res.headers.location;
-          setTimeout(doDownload, res.headers['retry-after'] ? parseInt(res.headers['retry-after'], 10) * 1000: 0);
+          setTimeout(doDownload, res.headers['retry-after'] ? parseInt(res.headers['retry-after'], 10) * 1000 : 0);
           stream.emit('redirect', url);
         }
-        return cleanup();
+        cleanup();
+        return;
 
         // Check for rate limiting.
       } else if (retryStatusCodes.has(res.statusCode)) {
         if (!retryRequest({ retryAfter: parseInt(res.headers['retry-after'], 10) })) {
-          let err = new Miniget.MinigetError('Status code: ' + res.statusCode, res.statusCode);
+          let err = new Miniget.MinigetError(`Status code: ${res.statusCode}`, res.statusCode);
           stream.emit('error', err);
         }
-        return cleanup();
-      } else if (res.statusCode < 200 || 400 <= res.statusCode) {
-        let err = new Miniget.MinigetError('Status code: ' + res.statusCode, res.statusCode);
+        cleanup();
+        return;
+      } else if (res.statusCode < 200 || res.statusCode >= 400) {
+        let err = new Miniget.MinigetError(`Status code: ${res.statusCode}`, res.statusCode);
         if (res.statusCode >= 500) {
           onError(err, res.statusCode);
         } else {
           stream.emit('error', err);
         }
-        return cleanup();
+        cleanup();
+        return;
       }
 
       activeDecodedStream = res as unknown as Transform;
       if (opts.acceptEncoding && res.headers['content-encoding']) {
         for (let enc of res.headers['content-encoding'].split(', ').reverse()) {
           let fn = opts.acceptEncoding[enc];
-          if (fn != null) {
+          if (fn) {
             activeDecodedStream = activeDecodedStream.pipe(fn());
             activeDecodedStream.on('error', onError);
           }
         }
       }
       if (!contentLength) {
-        contentLength = parseInt(res.headers['content-length'] + '', 10);
+        contentLength = parseInt(`${res.headers['content-length']}`, 10);
         acceptRanges = res.headers['accept-ranges'] === 'bytes' &&
           contentLength > 0 && opts.maxReconnects > 0;
       }
@@ -297,10 +299,10 @@ function Miniget(url: string, options: Miniget.Options = {}): Miniget.Stream {
     }
   };
 
-  stream.text = async () => new Promise((resolve, reject) => {
+  stream.text = () => new Promise((resolve, reject) => {
     let body = '';
     stream.setEncoding('utf8');
-    stream.on('data', (chunk) => body += chunk);
+    stream.on('data', chunk => body += chunk);
     stream.on('end', () => resolve(body));
     stream.on('error', reject);
   });

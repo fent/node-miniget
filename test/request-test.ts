@@ -24,7 +24,7 @@ describe('Make a request', () => {
   after(() => stub.restore());
 
   describe('with `.text()`', () => {
-    it('Gives entire contents of page', async () => {
+    it('Gives entire contents of page', async() => {
       const scope = nock('http://webby.com')
         .get('/pathos')
         .replyWithFile(200, __filename);
@@ -34,13 +34,13 @@ describe('Make a request', () => {
     });
 
     describe('that errors', () => {
-      it('error is caught', async () => {
+      it('error is caught', async() => {
         const scope = nock('http://something.com')
           .get('/one/two/three')
           .replyWithError('NONONO');
         await assert.rejects(
           miniget('http://something.com/one/two/three', { maxRetries: 0 }).text(),
-          null, 'NONONO'
+          null, 'NONONO',
         );
         scope.done();
       });
@@ -48,7 +48,7 @@ describe('Make a request', () => {
   });
 
   describe('to a working site', () => {
-    it('Returns a stream', (done) => {
+    it('Returns a stream', done => {
       const scope = nock('http://website.com')
         .get('/path')
         .replyWithFile(200, __filename);
@@ -63,7 +63,7 @@ describe('Make a request', () => {
   });
 
   describe('with options', () => {
-    it('Makes request with options', async () => {
+    it('Makes request with options', async() => {
       const scope = nock('http://website.com', {
         reqheaders: { 'User-Agent': 'miniget' },
       })
@@ -78,12 +78,12 @@ describe('Make a request', () => {
   });
 
   describe('with bad path', () => {
-    it('Emits error', (done) => {
+    it('Emits error', done => {
       const scope = nock('https://mysite.com')
         .get('/badpath')
         .reply(404, 'not exists');
       let stream = miniget('https://mysite.com/badpath');
-      stream.on('error', (err) => {
+      stream.on('error', err => {
         scope.done();
         assert.ok(err);
         done();
@@ -92,7 +92,7 @@ describe('Make a request', () => {
   });
 
   describe('that errors', () => {
-    it('Emits error event', (done) => {
+    it('Emits error event', done => {
       const scope = nock('https://mysite.com')
         .get('/path')
         .replyWithError('ENOTFOUND')
@@ -101,12 +101,12 @@ describe('Make a request', () => {
         .get('/path')
         .reply(500, 'oh no 3');
       const stream = miniget('https://mysite.com/path');
-      stream.on('retry', (retryCount) => {
+      stream.on('retry', retryCount => {
         process.nextTick(() => {
           clock.tick(retryCount * 100);
         });
       });
-      stream.on('error', (err) => {
+      stream.on('error', err => {
         scope.done();
         assert.equal(err.message, 'Status code: 500');
         assert.equal(err.statusCode, 500);
@@ -115,12 +115,12 @@ describe('Make a request', () => {
     });
 
     describe('without retries', () => {
-      it('Emits error event', (done) => {
+      it('Emits error event', done => {
         const scope = nock('https://mysite.com')
           .get('/path')
           .replyWithError('oh no 1');
         const stream = miniget('https://mysite.com/path', { maxRetries: 0 });
-        stream.on('error', (err) => {
+        stream.on('error', err => {
           assert.equal(err.message, 'oh no 1');
           scope.done();
           done();
@@ -130,7 +130,7 @@ describe('Make a request', () => {
   });
 
   describe('using https protocol', () => {
-    it('Uses the https module', (done) => {
+    it('Uses the https module', done => {
       const scope = nock('https://secureplace.net')
         .get('/')
         .reply(200);
@@ -145,8 +145,8 @@ describe('Make a request', () => {
   });
 
   describe('with an incorrect URL', () => {
-    it('Emits error', (done) => {
-      miniget('file:///path/to/file/').on('error', (err) => {
+    it('Emits error', done => {
+      miniget('file:///path/to/file/').on('error', err => {
         assert.ok(err);
         assert.equal(err.message, 'Invalid URL: file:///path/to/file/');
         done();
@@ -155,8 +155,8 @@ describe('Make a request', () => {
   });
 
   describe('with no URL', () => {
-    it('Emits error', (done) => {
-      miniget(undefined).on('error', (err) => {
+    it('Emits error', done => {
+      miniget(undefined).on('error', err => {
         assert.ok(err);
         assert.equal(err.message, 'Invalid URL: undefined');
         done();
@@ -165,7 +165,7 @@ describe('Make a request', () => {
   });
 
   describe('that redirects', () => {
-    it('Should download file after redirect', (done) => {
+    it('Should download file after redirect', done => {
       const scope = nock('http://mysite.com')
         .get('/pathy')
         .reply(302, '', { Location: 'http://mysite.com/redirected!' })
@@ -173,7 +173,7 @@ describe('Make a request', () => {
         .reply(200, 'Helloo!');
       const stream = miniget('http://mysite.com/pathy');
       stream.on('error', done);
-      stream.on('data', (body) => {
+      stream.on('data', body => {
         scope.done();
         assert.equal(body, 'Helloo!');
         done();
@@ -184,7 +184,7 @@ describe('Make a request', () => {
     });
 
     describe('too many times', () => {
-      it('Emits error after 3 retries', (done) => {
+      it('Emits error after 3 retries', done => {
         const scope = nock('http://yoursite.com')
           .get('/first-request')
           .reply(302, '', { Location: 'http://yoursite.com/redirect-1' })
@@ -195,7 +195,7 @@ describe('Make a request', () => {
         const stream = miniget('http://yoursite.com/first-request', {
           maxRedirects: 2,
         });
-        stream.on('error', (err) => {
+        stream.on('error', err => {
           assert.ok(err);
           scope.done();
           assert.equal(err.message, 'Too many redirects');
@@ -208,7 +208,7 @@ describe('Make a request', () => {
     });
 
     describe('with `retry-after` header', () => {
-      it('Redirects after given time', (done) => {
+      it('Redirects after given time', done => {
         const scope = nock('http://mysite2.com')
           .get('/pathos/to/resource')
           .reply(301, '', {
@@ -219,7 +219,7 @@ describe('Make a request', () => {
           .reply(200, 'hi world!!');
         const stream = miniget('http://mysite2.com/pathos/to/resource');
         stream.on('error', done);
-        stream.on('data', (body) => {
+        stream.on('data', body => {
           scope.done();
           assert.equal(body, 'hi world!!');
           done();
@@ -232,7 +232,7 @@ describe('Make a request', () => {
   });
 
   describe('that gets api limited', () => {
-    it('Retries the request after some time', (done) => {
+    it('Retries the request after some time', done => {
       const scope = nock('https://mysite.io')
         .get('/api/v1/data')
         .reply(429, 'slow down')
@@ -240,7 +240,7 @@ describe('Make a request', () => {
         .reply(200, 'where are u');
       const stream = miniget('https://mysite.io/api/v1/data');
       stream.on('error', done);
-      stream.on('data', (data) => {
+      stream.on('data', data => {
         scope.done();
         assert.equal(data, 'where are u');
         done();
@@ -249,7 +249,7 @@ describe('Make a request', () => {
         clock.tick(1000);
       });
     });
-    it('Emits error after multiple tries', (done) => {
+    it('Emits error after multiple tries', done => {
       const scope = nock('https://mysite.io')
         .get('/api/v1/data')
         .reply(429, 'too many requests')
@@ -259,7 +259,7 @@ describe('Make a request', () => {
         .reply(429, 'too many requests');
 
       const stream = miniget('https://mysite.io/api/v1/data');
-      stream.on('error', (err) => {
+      stream.on('error', err => {
         assert.ok(err);
         scope.done();
         assert.equal(err.message, 'Status code: 429');
@@ -271,7 +271,7 @@ describe('Make a request', () => {
       });
     });
     describe('with `retry-after` header', () => {
-      it('Retries after given time', (done) => {
+      it('Retries after given time', done => {
         const scope = nock('https://mysite.io')
           .get('/api/v1/dota')
           .reply(429, 'slow down', { 'Retry-After': '3600' })
@@ -279,7 +279,7 @@ describe('Make a request', () => {
           .reply(200, 'where are u');
         const stream = miniget('https://mysite.io/api/v1/dota');
         stream.on('error', done);
-        stream.on('data', (data) => {
+        stream.on('data', data => {
           scope.done();
           assert.equal(data, 'where are u');
           done();
@@ -295,13 +295,13 @@ describe('Make a request', () => {
   });
 
   describe('using the `transform` option', () => {
-    it('Calls `transform` function and customizes request', async () => {
+    it('Calls `transform` function and customizes request', async() => {
       const scope = nock('http://other.com')
         .get('/http://supplies.com/boxes')
         .reply(200, '[  ]');
       let transformCalled = false;
       let body = await miniget('http://supplies.com/boxes', {
-        transform: (parsed) => {
+        transform: parsed => {
           transformCalled = true;
           return {
             host: 'other.com',
@@ -313,12 +313,12 @@ describe('Make a request', () => {
       scope.done();
       assert.equal(body, '[  ]');
     });
-    it('Calls `transform` function and customizes request with protocol changing', async () => {
+    it('Calls `transform` function and customizes request with protocol changing', async() => {
       const scope = nock('http://that.com')
         .get('/')
         .reply(200, '[  ]');
       let body = await miniget('https://that.com', {
-        transform: (parsed) => {
+        transform: parsed => {
           parsed.protocol = 'http:';
           return parsed;
         },
@@ -327,36 +327,36 @@ describe('Make a request', () => {
       assert.equal(body, '[  ]');
     });
     describe('with bad URL', () => {
-      it('Catches error', (done) => {
+      it('Catches error', done => {
         let stream = miniget('http://supplies.com/boxes', {
-          transform: (parsed) => {
+          transform: parsed => {
             parsed.protocol = 'file';
             return parsed;
           },
         });
-        stream.on('error', (err) => {
+        stream.on('error', err => {
           assert.equal(err.message, 'Invalid URL object from `transform` function');
           done();
         });
       });
     });
     describe('with no object returned', () => {
-      it('Catches error', (done) => {
+      it('Catches error', done => {
         let stream = miniget('http://supplies.com/boxes', {
           transform: () => undefined,
         });
-        stream.on('error', (err) => {
+        stream.on('error', err => {
           assert.equal(err.message, 'Invalid URL object from `transform` function');
           done();
         });
       });
     });
     describe('that throws', () => {
-      it('Catches error', (done) => {
+      it('Catches error', done => {
         let stream = miniget('http://kanto.com', {
           transform: () => { throw Error('hello'); },
         });
-        stream.on('error', (err) => {
+        stream.on('error', err => {
           assert.equal(err.message, 'hello');
           done();
         });
@@ -367,7 +367,7 @@ describe('Make a request', () => {
   describe('that disconnects before end', () => {
     const file = path.resolve(__dirname, 'video.flv');
     let filesize: number;
-    before((done) => {
+    before(done => {
       fs.stat(file, (err, stat) => {
         assert.ifError(err);
         filesize = stat.size;
@@ -377,35 +377,34 @@ describe('Make a request', () => {
 
     const destroy = (req: ClientRequest, res: IncomingMessage): void => {
       req.destroy();
-      // res.destroy();
       res.unpipe();
     };
 
-    it('Still downloads entire file', (done) => {
+    it('Still downloads entire file', done => {
       const scope = nock('http://mysite.com')
         .get('/myfile')
         .replyWithFile(200, file, {
-          'content-length': filesize + '',
+          'content-length': `${filesize}`,
           'accept-ranges': 'bytes',
         });
       const stream = miniget('http://mysite.com/myfile', { maxReconnects: 1 });
       let req: ClientRequest, res: IncomingMessage;
-      stream.on('request', (a) => { req = a; });
-      stream.on('response', (a) => { res = a; });
+      stream.on('request', a => { req = a; });
+      stream.on('response', a => { res = a; });
       let reconnects = 0;
       stream.on('reconnect', () => {
         reconnects++;
         clock.tick(100);
       });
       let downloaded = 0, destroyed = false;
-      stream.on('data', (chunk) => {
+      stream.on('data', chunk => {
         downloaded += chunk.length;
         if (!destroyed && downloaded / filesize >= 0.3) {
           destroyed = true;
           scope.get('/myfile')
             .reply(206, () => fs.createReadStream(file, { start: downloaded }), {
               'content-range': `bytes ${downloaded}-${filesize}/${filesize}`,
-              'content-length': `${(filesize - downloaded)}`,
+              'content-length': `${filesize - downloaded}`,
               'accept-ranges': 'bytes',
             });
           destroy(req, res);
@@ -422,23 +421,23 @@ describe('Make a request', () => {
     });
 
     describe('without an error', () => {
-      it('Still downloads entire file', (done) => {
+      it('Still downloads entire file', done => {
         const scope = nock('http://mysite.com')
           .get('/myfile')
           .replyWithFile(200, file, {
-            'content-length': filesize + '',
+            'content-length': `${filesize}`,
             'accept-ranges': 'bytes',
           });
         const stream = miniget('http://mysite.com/myfile', { maxReconnects: 1 });
         let res: IncomingMessage;
-        stream.on('response', (a) => { res = a; });
+        stream.on('response', a => { res = a; });
         let reconnects = 0;
         stream.on('reconnect', () => {
           reconnects++;
           clock.tick(100);
         });
         let downloaded = 0, destroyed = false;
-        stream.on('data', (chunk) => {
+        stream.on('data', chunk => {
           downloaded += chunk.length;
           if (!destroyed && downloaded / filesize >= 0.3) {
             destroyed = true;
@@ -462,11 +461,11 @@ describe('Make a request', () => {
       });
 
       describe('without enough reconnects', () => {
-        it('Downloads partial file', (done) => {
+        it('Downloads partial file', done => {
           const scope = nock('http://mysite.com')
             .get('/yourfile')
             .replyWithFile(200, file, {
-              'content-length': filesize + '',
+              'content-length': `${filesize}`,
               'accept-ranges': 'bytes',
             });
           const stream = miniget('http://mysite.com/yourfile', {
@@ -474,7 +473,7 @@ describe('Make a request', () => {
             maxRetries: 0,
           });
           let res: IncomingMessage;
-          stream.on('response', (a) => {
+          stream.on('response', a => {
             res = a;
           });
           let reconnects = 0;
@@ -489,7 +488,7 @@ describe('Make a request', () => {
             clock.tick(100);
           });
           let downloaded = 0, destroyed = false;
-          stream.on('data', (chunk) => {
+          stream.on('data', chunk => {
             downloaded += chunk.length;
             if (downloaded / filesize >= 0.3) {
               destroyed = true;
@@ -509,11 +508,11 @@ describe('Make a request', () => {
     });
 
     describe('too many times', () => {
-      it('Emits error', (done) => {
+      it('Emits error', done => {
         const scope = nock('http://mysite.com')
           .get('/myfile')
           .replyWithFile(200, file, {
-            'content-length': filesize + '',
+            'content-length': `${filesize}`,
             'accept-ranges': 'bytes',
           });
         const stream = miniget('http://mysite.com/myfile', {
@@ -521,15 +520,15 @@ describe('Make a request', () => {
           headers: { Range: 'bad' },
         });
         let req: ClientRequest, res: IncomingMessage;
-        stream.on('request', (a) => { req = a; });
-        stream.on('response', (a) => { res = a; });
+        stream.on('request', a => { req = a; });
+        stream.on('response', a => { res = a; });
         let reconnects = 0;
         stream.on('reconnect', () => {
           reconnects++;
           clock.tick(100);
         });
         let downloaded = 0, destroyed = false;
-        stream.on('data', (chunk) => {
+        stream.on('data', chunk => {
           downloaded += chunk.length;
           if (downloaded / filesize >= 0.3) {
             destroyed = true;
@@ -558,7 +557,7 @@ describe('Make a request', () => {
     });
 
     describe('with ranged request headers', () => {
-      it('Downloads correct portion of file', (done) => {
+      it('Downloads correct portion of file', done => {
         const start = Math.round(filesize / 3);
         const scope = nock('http://mysite.com', { reqheaders: { Range: /bytes=/ } })
           .get('/myfile')
@@ -572,15 +571,15 @@ describe('Make a request', () => {
           headers: { Range: `bytes=${start}-` },
         });
         let req: ClientRequest, res: IncomingMessage;
-        stream.on('request', (a) => { req = a; });
-        stream.on('response', (a) => { res = a; });
+        stream.on('request', a => { req = a; });
+        stream.on('response', a => { res = a; });
         let reconnects = 0;
         stream.on('reconnect', () => {
           reconnects++;
           clock.tick(100);
         });
         let downloaded = start, destroyed = false;
-        stream.on('data', (chunk) => {
+        stream.on('data', chunk => {
           downloaded += chunk.length;
           if (!destroyed && downloaded / filesize >= 0.5) {
             destroyed = true;
@@ -607,7 +606,7 @@ describe('Make a request', () => {
 
   describe('that gets destroyed', () => {
     describe('immediately', () => {
-      it('Does not end stream', (done) => {
+      it('Does not end stream', done => {
         nock('http://anime.me')
           .get('/')
           .reply(200, 'ooooaaaaaaaeeeee');
@@ -623,7 +622,7 @@ describe('Make a request', () => {
       });
     });
     describe('after getting `request`', () => {
-      it('Does not start download, no `response` event', (done) => {
+      it('Does not start download, no `response` event', done => {
         nock('https://friend.com')
           .get('/yes')
           .reply(200, '<html>my reply :)</html>');
@@ -647,7 +646,7 @@ describe('Make a request', () => {
       });
     });
     describe('after getting `response` but before end', () => {
-      it('Response does not give any data', (done) => {
+      it('Response does not give any data', done => {
         const file = path.resolve(__dirname, 'video.flv');
         const scope = nock('http://www.google1.com')
           .get('/one')
@@ -655,7 +654,6 @@ describe('Make a request', () => {
           .replyWithFile(200, file);
         const stream = miniget('http://www.google1.com/one');
         stream.on('end', () => {
-          console.trace();
           done(Error('`end` event should not emit'));
         });
 
@@ -674,7 +672,7 @@ describe('Make a request', () => {
     });
 
     describe('using `abort()`', () => {
-      it('Emits `abort` and does not end stream', (done) => {
+      it('Emits `abort` and does not end stream', done => {
         nock('http://anime.me')
           .get('/')
           .reply(200, 'ooooaaaaaaaeeeee');
@@ -694,7 +692,7 @@ describe('Make a request', () => {
   describe('with `acceptEncoding` option', () => {
     const file = path.resolve(__dirname, 'video.flv');
     let filesize: number;
-    before((done) => {
+    before(done => {
       fs.stat(file, (err, stat) => {
         assert.ifError(err);
         filesize = stat.size;
@@ -702,14 +700,14 @@ describe('Make a request', () => {
       });
     });
 
-    it('Decompresses stream', async () => {
+    it('Decompresses stream', async() => {
       const res = fs.createReadStream(file).pipe(zlib.createGzip());
       const scope = nock('http://yoursite.com', {
-        reqheaders: { 'Accept-Encoding': 'gzip' }
+        reqheaders: { 'Accept-Encoding': 'gzip' },
       })
         .get('/compressedfile')
         .reply(200, res, {
-          'content-length': filesize + '',
+          'content-length': `${filesize}`,
           'content-encoding': 'gzip',
         });
       const stream = miniget('http://yoursite.com/compressedfile', {
@@ -722,16 +720,16 @@ describe('Make a request', () => {
     });
 
     describe('compressed twice', () => {
-      it('Decompresses stream', async () => {
+      it('Decompresses stream', async() => {
         const res = fs.createReadStream(file)
           .pipe(zlib.createGzip())
           .pipe(zlib.createDeflate());
         const scope = nock('http://yoursite.com', {
-          reqheaders: {}
+          reqheaders: {},
         })
           .get('/compressedfile')
           .reply(200, res, {
-            'content-length': filesize + '',
+            'content-length': `${filesize}`,
             'content-encoding': 'gzip, deflate',
           });
         const stream = miniget('http://yoursite.com/compressedfile', {
@@ -748,16 +746,16 @@ describe('Make a request', () => {
     });
 
     describe('compressed incorrectly', () => {
-      it('Emits compression error', async () => {
+      it('Emits compression error', async() => {
         const res = fs.createReadStream(file)
           .pipe(zlib.createGzip())
           .pipe(zlib.createDeflate());
         const scope = nock('http://yoursite.com', {
-          reqheaders: { 'Accept-Encoding': 'gzip, deflate' }
+          reqheaders: { 'Accept-Encoding': 'gzip, deflate' },
         })
           .get('/compressedfile')
           .reply(200, res, {
-            'content-length': filesize + '',
+            'content-length': `${filesize}`,
             // Encoding is in reverse order.
             'content-encoding': 'deflate, gzip',
           });
@@ -766,25 +764,25 @@ describe('Make a request', () => {
           acceptEncoding: {
             gzip: (): Transform => zlib.createGunzip(),
             deflate: (): Transform => zlib.createInflate(),
-          }
+          },
         });
         await assert.rejects(
           streamEqual(fs.createReadStream(file), stream),
-          null, 'incorrect header check'
+          null, 'incorrect header check',
         );
         scope.done();
       });
     });
 
     describe('without matching decompressing stream', () => {
-      it('Gets original compressed stream', async () => {
+      it('Gets original compressed stream', async() => {
         const res = fs.createReadStream(file).pipe(zlib.createGzip());
         const scope = nock('http://yoursite.com', {
-          reqheaders: { 'Accept-Encoding': 'deflate' }
+          reqheaders: { 'Accept-Encoding': 'deflate' },
         })
           .get('/compressedfile')
           .reply(200, res, {
-            'content-length': filesize + '',
+            'content-length': `${filesize}`,
             'content-encoding': 'gzip',
           });
         const stream = miniget('http://yoursite.com/compressedfile', {
@@ -801,16 +799,16 @@ describe('Make a request', () => {
     });
 
     describe('destroy mid-stream', () => {
-      it('Stops stream without error', (done) => {
+      it('Stops stream without error', done => {
         const res = fs.createReadStream(file)
           .pipe(zlib.createGzip())
           .pipe(zlib.createDeflate());
         const scope = nock('http://yoursite.com', {
-          reqheaders: { 'Accept-Encoding': 'gzip, deflate' }
+          reqheaders: { 'Accept-Encoding': 'gzip, deflate' },
         })
           .get('/compressedfile')
           .reply(200, res, {
-            'content-length': filesize + '',
+            'content-length': `${filesize}`,
             'content-encoding': 'gzip, deflate',
           });
         const stream = miniget('http://yoursite.com/compressedfile', {
@@ -836,7 +834,7 @@ describe('Make a request', () => {
   });
 
   describe('with `method = "HEAD"`', () => {
-    it('Emits `response`', (done) => {
+    it('Emits `response`', done => {
       const scope = nock('http://hello.net')
         .head('/world')
         .reply(200, '', { 'content-length': '10' });
@@ -850,7 +848,7 @@ describe('Make a request', () => {
     });
   });
 
-  it('Events from request and response are forwarded to miniget stream', (done) => {
+  it('Events from request and response are forwarded to miniget stream', done => {
     const scope = nock('https://randomhost.com')
       .get('/randompath')
       .reply(200, 'hi');
