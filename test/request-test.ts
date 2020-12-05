@@ -3,7 +3,7 @@ import path from 'path';
 import zlib from 'zlib';
 import assert from 'assert';
 import { Transform } from 'stream';
-import { IncomingMessage, ClientRequest } from 'http';
+import { IncomingMessage, ClientRequest, RequestOptions } from 'http';
 
 import miniget from '../dist';
 
@@ -40,7 +40,7 @@ describe('Make a request', () => {
           .replyWithError('NONONO');
         await assert.rejects(
           miniget('http://something.com/one/two/three', { maxRetries: 0 }).text(),
-          null, 'NONONO',
+          { message: 'NONONO' },
         );
         scope.done();
       });
@@ -156,7 +156,7 @@ describe('Make a request', () => {
 
   describe('with no URL', () => {
     it('Emits error', done => {
-      miniget(undefined).on('error', err => {
+      miniget('undefined').on('error', err => {
         assert.ok(err);
         assert.equal(err.message, 'Invalid URL: undefined');
         done();
@@ -343,7 +343,7 @@ describe('Make a request', () => {
     describe('with no object returned', () => {
       it('Catches error', done => {
         let stream = miniget('http://supplies.com/boxes', {
-          transform: () => undefined,
+          transform: (_: RequestOptions) => undefined as unknown as RequestOptions,
         });
         stream.on('error', err => {
           assert.equal(err.message, 'Invalid URL object from `transform` function');
@@ -768,7 +768,7 @@ describe('Make a request', () => {
         });
         await assert.rejects(
           streamEqual(fs.createReadStream(file), stream),
-          null, 'incorrect header check',
+          { message: 'incorrect header check' },
         );
         scope.done();
       });
