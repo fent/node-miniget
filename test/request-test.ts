@@ -245,7 +245,7 @@ describe('Make a request', () => {
     });
   });
 
-  describe('that gets api limited', () => {
+  describe('that gets rate limited', () => {
     it('Retries the request after some time', done => {
       const scope = nock('https://mysite.io')
         .get('/api/v1/data')

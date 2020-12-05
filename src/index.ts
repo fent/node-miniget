@@ -231,7 +231,7 @@ function Miniget(url: string, options: Miniget.Options = {}): Miniget.Stream {
             cleanup();
             return;
           }
-          setTimeout(doDownload, res.headers['retry-after'] ? parseInt(res.headers['retry-after'], 10) * 1000 : 0);
+          setTimeout(doDownload, parseInt(res.headers['retry-after'] || '0', 10) * 1000);
           stream.emit('redirect', url);
         }
         cleanup();
@@ -239,7 +239,7 @@ function Miniget(url: string, options: Miniget.Options = {}): Miniget.Stream {
 
         // Check for rate limiting.
       } else if (retryStatusCodes.has(res.statusCode as number)) {
-        if (!retryRequest({ retryAfter: parseInt(res.headers['retry-after'], 10) })) {
+        if (!retryRequest({ retryAfter: parseInt(res.headers['retry-after'] || '0', 10) })) {
           let err = new Miniget.MinigetError(`Status code: ${res.statusCode}`, res.statusCode);
           stream.emit('error', err);
         }
