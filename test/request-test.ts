@@ -229,6 +229,20 @@ describe('Make a request', () => {
         });
       });
     });
+
+    describe('without `location` header', () => {
+      it('Throws an error', done => {
+        const scope = nock('http://mysite.com')
+          .get('/pathy')
+          .reply(302, '', {});
+        const stream = miniget('http://mysite.com/pathy');
+        stream.on('error', err => {
+          scope.done();
+          assert.equal(err.message, 'Redirect status code given with no location');
+          done();
+        });
+      });
+    });
   });
 
   describe('that gets api limited', () => {

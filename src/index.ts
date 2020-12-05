@@ -149,7 +149,7 @@ function Miniget(url: string, options: Miniget.Options = {}): Miniget.Stream {
     let parsed: RequestOptions = {}, httpLib;
     try {
       parsed = urlParse(url);
-      httpLib = httpLibs[parsed.protocol as string];
+      httpLib = httpLibs[parsed.protocol];
     } catch (err) {
       // Let the error be caught by the if statement below.
     }
@@ -175,7 +175,7 @@ function Miniget(url: string, options: Miniget.Options = {}): Miniget.Stream {
         return;
       }
       if (!parsed || parsed.protocol) {
-        httpLib = httpLibs[parsed?.protocol as string];
+        httpLib = httpLibs[parsed?.protocol];
         if (!httpLib) {
           stream.emit('error', new Miniget.MinigetError('Invalid URL object from `transform` function'));
           return;
@@ -223,7 +223,14 @@ function Miniget(url: string, options: Miniget.Options = {}): Miniget.Stream {
         if (redirects++ >= opts.maxRedirects) {
           stream.emit('error', new Miniget.MinigetError('Too many redirects'));
         } else {
-          url = res.headers.location as string;
+          if (res.headers.location) {
+            url = res.headers.location;
+          } else {
+            let err = new Miniget.MinigetError('Redirect status code given with no location', res.statusCode);
+            stream.emit('error', err);
+            cleanup();
+            return;
+          }
           setTimeout(doDownload, res.headers['retry-after'] ? parseInt(res.headers['retry-after'], 10) * 1000 : 0);
           stream.emit('redirect', url);
         }
