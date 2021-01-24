@@ -1,7 +1,7 @@
 import { RequestOptions, IncomingMessage, ClientRequest, default as http } from 'http';
 import { EventEmitter } from 'events';
 import https from 'https';
-import { parse as urlParse } from 'url';
+import { URL } from 'url';
 import { PassThrough, Transform } from 'stream';
 
 
@@ -148,7 +148,17 @@ function Miniget(url: string, options: Miniget.Options = {}): Miniget.Stream {
   const doDownload = () => {
     let parsed: RequestOptions = {}, httpLib;
     try {
-      parsed = urlParse(url);
+      let urlObj = new URL(url);
+      parsed = Object.assign({}, {
+        host: urlObj.host,
+        hostname: urlObj.hostname,
+        path: urlObj.pathname + urlObj.search + urlObj.hash,
+        port: urlObj.port,
+        protocol: urlObj.protocol,
+      });
+      if (urlObj.username) {
+        parsed.auth = `${urlObj.username}:${urlObj.password}`;
+      }
       httpLib = httpLibs[parsed.protocol];
     } catch (err) {
       // Let the error be caught by the if statement below.

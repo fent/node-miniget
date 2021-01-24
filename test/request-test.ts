@@ -144,6 +144,17 @@ describe('Make a request', () => {
     });
   });
 
+  describe('with auth', () => {
+    it('Passes auth to request', async() => {
+      const scope = nock('https://lockbox.com')
+        .get('/vault')
+        .basicAuth({ user: 'john', pass: 'pass' })
+        .reply(200);
+      await miniget('https://john:pass@lockbox.com/vault');
+      scope.done();
+    });
+  });
+
   describe('with an incorrect URL', () => {
     it('Emits error', done => {
       miniget('file:///path/to/file/').on('error', err => {
@@ -878,7 +889,7 @@ describe('Make a request', () => {
   });
 });
 
-describe('Importing the module', () => {
+describe('Import the module', () => {
   it('Exposes default options', () => {
     assert.ok(miniget.defaultOptions);
   });
