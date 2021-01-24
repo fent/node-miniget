@@ -66,7 +66,7 @@ Miniget.defaultOptions = {
   backoff: { inc: 100, max: 10000 },
 };
 
-function Miniget(url: string, options: Miniget.Options = {}): Miniget.Stream {
+function Miniget(url: string | URL, options: Miniget.Options = {}): Miniget.Stream {
   const opts: Miniget.DefaultOptions = Object.assign({}, Miniget.defaultOptions, options);
   const stream = new PassThrough({ highWaterMark: opts.highWaterMark }) as Miniget.Stream;
   stream.destroyed = stream.aborted = false;
@@ -148,7 +148,7 @@ function Miniget(url: string, options: Miniget.Options = {}): Miniget.Stream {
   const doDownload = () => {
     let parsed: RequestOptions = {}, httpLib;
     try {
-      let urlObj = new URL(url);
+      let urlObj = typeof url === 'string' ? new URL(url) : url;
       parsed = Object.assign({}, {
         host: urlObj.host,
         hostname: urlObj.hostname,

@@ -4,6 +4,7 @@ import zlib from 'zlib';
 import assert from 'assert';
 import { Transform } from 'stream';
 import { IncomingMessage, ClientRequest, RequestOptions } from 'http';
+import { URL } from 'url';
 
 import miniget from '../dist';
 
@@ -152,6 +153,17 @@ describe('Make a request', () => {
         .reply(200);
       await miniget('https://john:pass@lockbox.com/vault');
       scope.done();
+    });
+  });
+
+  describe('with URL object passed', () => {
+    it('Creates request and gets correct response', async() => {
+      const scope = nock('http://webby.com')
+        .get('/pathos')
+        .replyWithFile(200, __filename);
+      let body = await miniget(new URL('http://webby.com/pathos')).text();
+      scope.done();
+      assert.ok(body.length > 100);
     });
   });
 
