@@ -75,7 +75,7 @@ function Miniget(url: string, options: Miniget.Options = {}): Miniget.Stream {
   let acceptRanges = false;
   let rangeStart = 0, rangeEnd: number;
   let downloaded = 0;
-  url = opts.prefix ? prefix + url : url;
+  url = opts.prefix ? opts.prefix + url : url;
 
   // Check if this is a ranged request.
   if (opts.headers?.Range) {
