@@ -26,6 +26,7 @@ namespace Miniget {
     highWaterMark?: number;
     transform?: (parsedUrl: RequestOptions) => RequestOptions;
     acceptEncoding?: { [key: string]: () => Transform };
+    prefix?: string;
   }
 
   export type defaultOptions = Miniget.Options;
@@ -74,6 +75,7 @@ function Miniget(url: string, options: Miniget.Options = {}): Miniget.Stream {
   let acceptRanges = false;
   let rangeStart = 0, rangeEnd: number;
   let downloaded = 0;
+  url = opts.prefix ? prefix + url : url;
 
   // Check if this is a ranged request.
   if (opts.headers?.Range) {
