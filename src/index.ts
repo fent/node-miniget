@@ -193,6 +193,9 @@ function Miniget(url: string | URL, options: Miniget.Options = {}): Miniget.Stre
     }
 
     const onError = (err: Miniget.MinigetError): void => {
+      if (stream.destroyed || stream.readableEnded) { return; }
+      // Needed for node v10.
+      if ((stream as any)._readableState.ended) { return; }
       cleanup();
       if (!retryRequest({ err })) {
         stream.emit('error', err);
@@ -207,12 +210,9 @@ function Miniget(url: string | URL, options: Miniget.Options = {}): Miniget.Stre
     };
 
     const cleanup = () => {
-      activeRequest.removeListener('error', onError);
       activeRequest.removeListener('close', onRequestClose);
       activeResponse?.removeListener('data', onData);
       activeDecodedStream?.removeListener('end', onEnd);
-      activeDecodedStream?.removeListener('error', onError);
-      activeResponse?.removeListener('error', onError);
     };
 
     const onData = (chunk: Buffer) => { downloaded += chunk.length; };

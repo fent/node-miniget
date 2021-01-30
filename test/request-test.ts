@@ -870,6 +870,26 @@ describe('Make a request', () => {
     });
   });
 
+  describe('`response` emits error after end', () => {
+    it('Error does not get emitted to stream', done => {
+      const scope = nock('https://hello.com')
+        .get('/one/two')
+        .reply(200, '<html></html>');
+      const stream = miniget('https://hello.com/one/two');
+      stream.resume();
+      let res: IncomingMessage;
+      stream.on('response', a => res = a);
+      stream.on('error', done);
+      stream.on('end', () => {
+        process.nextTick(() => {
+          res.emit('error', Error('random after end error'));
+        });
+        scope.done();
+        done();
+      });
+    });
+  });
+
   describe('with `method = "HEAD"`', () => {
     it('Emits `response`', done => {
       const scope = nock('http://hello.net')

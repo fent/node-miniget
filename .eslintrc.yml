@@ -14,10 +14,7 @@ plugins:
 rules:
   no-await-in-loop: off
   no-compare-neg-zero: error
-  no-extra-parens:
-  - warn
-  - all
-  - nestedBinaryExpressions: false
+  no-extra-parens: off
   no-template-curly-in-string: error
   no-unsafe-negation: error
   valid-jsdoc:
@@ -208,3 +205,4 @@ rules:
   '@typescript-eslint/no-namespace': off
   '@typescript-eslint/ban-ts-ignore': off
   '@typescript-eslint/no-unused-vars': off
+  '@typescript-eslint/no-extra-parens': warn
