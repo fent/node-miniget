@@ -8,7 +8,7 @@
     "redirect",
     "stream"
   ],
-  "version": "4.1.0",
+  "version": "0.0.0-development",
   "repository": {
     "type": "git",
     "url": "git://github.com/fent/node-miniget.git"
