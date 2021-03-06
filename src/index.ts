@@ -1,9 +1,14 @@
 import { RequestOptions, IncomingMessage, ClientRequest, default as http } from 'http';
 import { EventEmitter } from 'events';
 import https from 'https';
-import { URL } from 'url';
 import { PassThrough, Transform } from 'stream';
 
+/**
+ * URL constructor
+ *
+ * For compatibility with browser and Node.js APIs
+ */
+const URL = typeof window !== 'undefined' ? window.URL : require('url').URL; /* global window */
 
 const httpLibs: {
   [key: string]: {
