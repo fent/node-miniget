@@ -4,7 +4,6 @@ import zlib from 'zlib';
 import assert from 'assert';
 import { Transform } from 'stream';
 import { IncomingMessage, ClientRequest, RequestOptions } from 'http';
-import { URL } from 'url';
 
 import miniget from '../dist';
 
