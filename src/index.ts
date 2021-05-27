@@ -1,7 +1,6 @@
 import { RequestOptions, IncomingMessage, ClientRequest, default as http } from 'http';
 import { EventEmitter } from 'events';
 import https from 'https';
-import { URL } from 'url';
 import { PassThrough, Transform } from 'stream';
 
 
