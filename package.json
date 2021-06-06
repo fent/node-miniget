@@ -26,7 +26,6 @@
     "lint": "eslint ./src ./test",
     "lint:fix": "eslint --fix ./src ./test"
   },
-  "dependencies": {},
   "devDependencies": {
     "@types/mocha": "^7.0.0",
     "@types/node": "^14.14.9",
@@ -44,7 +43,7 @@
     "typescript": "^3.9.7"
   },
   "engines": {
-    "node": ">=10"
+    "node": ">=12"
   },
   "license": "MIT"
 }
