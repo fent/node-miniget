@@ -40,7 +40,7 @@ namespace Miniget {
   export interface Stream extends PassThrough {
     abort: (err?: Error) => void;
     aborted: boolean;
-    destroy: (err?: Error) => void;
+    destroy: (err?: Error) => this;
     destroyed: boolean;
     text: () => Promise<string>;
     on(event: 'reconnect', listener: (attempt: number, err?: Miniget.MinigetError) => void): this;
