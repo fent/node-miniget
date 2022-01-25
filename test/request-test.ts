@@ -198,7 +198,7 @@ describe('Make a request', () => {
 
   describe('with no URL', () => {
     it('Emits error', done => {
-      miniget(undefined).on('error', err => {
+      miniget('undefined').on('error', err => {
         assert.ok(err);
         assert.equal(err.message, 'Invalid URL: undefined');
         done();
