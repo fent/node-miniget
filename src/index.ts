@@ -161,8 +161,14 @@ function Miniget(url: string | URL, options: Miniget.Options = {}): Miniget.Stre
     } catch (err) {
       // Let the error be caught by the if statement below.
     }
-    if (!httpLib) {
+    if (!urlObj || Object.keys(parsed).length === 0) {
       stream.emit('error', new Miniget.MinigetError(`Invalid URL: ${url}`));
+      return;
+    } else if (!httpLibs.hasOwnProperty(String(parsed.protocol))) {
+      stream.emit('error', new Miniget.MinigetError(`Unsupported URL protocol`));
+      return;
+    } else if (!httpLib) {
+      stream.emit('error', new Miniget.MinigetError(`Unable to access http(s) library`));
       return;
     }
 
@@ -180,12 +186,17 @@ function Miniget(url: string | URL, options: Miniget.Options = {}): Miniget.Stre
         parsed = opts.transform(parsed);
       } catch (err) {
         stream.emit('error', err);
+        // Annotation: this return does not stop execution :thinking:
+        // it only returns the catch-block and continues with Line 193
         return;
       }
       if (!parsed || parsed.protocol) {
         httpLib = httpLibs[String(parsed?.protocol)];
-        if (!httpLib) {
-          stream.emit('error', new Miniget.MinigetError('Invalid URL object from `transform` function'));
+        if (!httpLib.hasOwnProperty(String(parsed?.protocol))) {
+          stream.emit('error', new Miniget.MinigetError('Unsupported URL protocol from `transform` function'));
+          return;
+        } if (!httpLib) {
+          stream.emit('error', new Miniget.MinigetError('Unable to access http(s) library'));
           return;
         }
       }
