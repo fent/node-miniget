@@ -161,7 +161,7 @@ function Miniget(url: string | URL, options: Miniget.Options = {}): Miniget.Stre
     } catch (err) {
       // Let the error be caught by the if statement below.
     }
-    if (!urlObj || Object.keys(parsed).length === 0) {
+    if (Object.keys(parsed).length === 0) {
       stream.emit('error', new Miniget.MinigetError(`Invalid URL: ${url}`));
       return;
     } else if (!httpLibs.hasOwnProperty(String(parsed.protocol))) {
