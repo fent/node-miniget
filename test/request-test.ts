@@ -166,11 +166,31 @@ describe('Make a request', () => {
     });
   });
 
-  describe('with an incorrect URL', () => {
+  describe('with an unknown URL protocol', () => {
     it('Emits error', done => {
       miniget('file:///path/to/file/').on('error', err => {
         assert.ok(err);
-        assert.equal(err.message, 'Invalid URL: file:///path/to/file/');
+        assert.equal(err.message, 'Unsupported URL protocol');
+        done();
+      });
+    });
+  });
+
+  describe('with an incorrect URL', () => {
+    it('Emits error', done => {
+      miniget('https://').on('error', err => {
+        assert.ok(err);
+        assert.equal(err.message, 'Invalid URL: https://');
+        done();
+      });
+    });
+  });
+
+  describe('with an empty URL', () => {
+    it('Emits error', done => {
+      miniget('').on('error', err => {
+        assert.ok(err);
+        assert.equal(err.message, 'Invalid URL: undefined');
         done();
       });
     });
@@ -178,7 +198,7 @@ describe('Make a request', () => {
 
   describe('with no URL', () => {
     it('Emits error', done => {
-      miniget('undefined').on('error', err => {
+      miniget(undefined).on('error', err => {
         assert.ok(err);
         assert.equal(err.message, 'Invalid URL: undefined');
         done();
