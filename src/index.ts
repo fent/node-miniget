@@ -36,7 +36,7 @@ namespace Miniget {
 
   export type defaultOptions = Miniget.Options;
   export type MinigetError = Error;
-  export type httpLibStorage = { [key: string]: HTTPLib };
+  export type httpLibs = { [key: string]: HTTPLib };
 
   export interface Stream extends PassThrough {
     abort: (err?: Error) => void;
@@ -51,7 +51,7 @@ namespace Miniget {
   }
 }
 
-Miniget.httpLibStorage = { 'http:': http, 'https:': https } as { [key: string]: Miniget.HTTPLib };
+Miniget.httpLibs = { 'http:': http, 'https:': https } as { [key: string]: Miniget.HTTPLib };
 
 Miniget.MinigetError = class MinigetError extends Error {
   public statusCode?: number;
@@ -160,14 +160,14 @@ function Miniget(url: string | URL, options: Miniget.Options = {}): Miniget.Stre
       if (urlObj.username) {
         parsed.auth = `${urlObj.username}:${urlObj.password}`;
       }
-      httpLib = Miniget.httpLibStorage[String(parsed.protocol)];
+      httpLib = Miniget.httpLibs[String(parsed.protocol)];
     } catch (err) {
       // Let the error be caught by the if statement below.
     }
     if (Object.keys(parsed).length === 0) {
       stream.emit('error', new Miniget.MinigetError(`Invalid URL: ${url}`));
       return;
-    } else if (!Object.prototype.hasOwnProperty.call(Miniget.httpLibStorage, String(parsed.protocol))) {
+    } else if (!Object.prototype.hasOwnProperty.call(Miniget.httpLibs, String(parsed.protocol))) {
       stream.emit('error', new Miniget.MinigetError(`Unsupported URL protocol`));
       return;
     } else if (!httpLib) {
@@ -190,12 +190,12 @@ function Miniget(url: string | URL, options: Miniget.Options = {}): Miniget.Stre
       } catch (err) {
         stream.emit('error', err);
         // Annotation: this return does not stop execution :thinking:
-        // it only returns the catch-block and continues with Line 193
+        // it only returns the catch-block and continues with Line 196
         return;
       }
       if (!parsed || parsed.protocol) {
-        httpLib = Miniget.httpLibStorage[String(parsed?.protocol)];
-        if (!Object.prototype.hasOwnProperty.call(Miniget.httpLibStorage, String(parsed?.protocol))) {
+        httpLib = Miniget.httpLibs[String(parsed?.protocol)];
+        if (!Object.prototype.hasOwnProperty.call(Miniget.httpLibs, String(parsed?.protocol))) {
           stream.emit('error', new Miniget.MinigetError('Unsupported URL protocol from `transform` function'));
           return;
         } else if (!httpLib) {
