@@ -189,8 +189,6 @@ function Miniget(url: string | URL, options: Miniget.Options = {}): Miniget.Stre
         parsed = opts.transform(parsed);
       } catch (err) {
         stream.emit('error', err);
-        // Annotation: this return does not stop execution :thinking:
-        // it only returns the catch-block and continues with Line 196
         return;
       }
       if (!parsed || parsed.protocol) {
