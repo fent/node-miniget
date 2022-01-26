@@ -210,8 +210,8 @@ describe('Make a request', () => {
     let httpsLib: any;
     before(() => {
       // Runs once before the first test in this block
-      httpsLib = miniget.httpLibs['https:'];
-      miniget.httpLibs['https:'] = null;
+      httpsLib = miniget.httpLibStorage['https:'];
+      miniget.httpLibStorage['https:'] = undefined as unknown as miniget.HTTPLib;
     });
     it('Catches error', done => {
       let stream = miniget('https://supplies.com/boxes');
@@ -222,7 +222,7 @@ describe('Make a request', () => {
     });
     after(() => {
       // Runs once before the first test in this block
-      miniget.httpLibs['https:'] = httpsLib;
+      miniget.httpLibStorage['https:'] = httpsLib;
     });
   });
 
@@ -427,12 +427,12 @@ describe('Make a request', () => {
         });
       });
     });
-    describe('with no https library defined', () => {
+    describe('with no http(s) library defined', () => {
       let httpsLib: any;
       before(() => {
         // Runs once before the first test in this block
-        httpsLib = miniget.httpLibs['http:'];
-        miniget.httpLibs['http:'] = null;
+        httpsLib = miniget.httpLibStorage['http:'];
+        miniget.httpLibStorage['http:'] = undefined as unknown as miniget.HTTPLib;
       });
       it('Catches error', done => {
         let stream = miniget('https://supplies.com/boxes', {
@@ -448,7 +448,7 @@ describe('Make a request', () => {
       });
       after(() => {
         // Runs once before the first test in this block
-        miniget.httpLibs['http:'] = httpsLib;
+        miniget.httpLibStorage['http:'] = httpsLib;
       });
     });
     describe('that throws', () => {
