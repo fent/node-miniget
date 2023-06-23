@@ -302,7 +302,7 @@ function Miniget(url: string | URL, options: Miniget.Options = {}): Miniget.Stre
     stream.destroy(err);
   };
 
-  let destroyArgs: any[];
+  let destroyArgs: any[] = [];
   const streamDestroy = (err?: Error) => {
     activeRequest.destroy(err);
     activeDecodedStream?.unpipe(stream);
