@@ -166,11 +166,31 @@ describe('Make a request', () => {
     });
   });
 
-  describe('with an incorrect URL', () => {
+  describe('with an unknown URL protocol', () => {
     it('Emits error', done => {
       miniget('file:///path/to/file/').on('error', err => {
         assert.ok(err);
-        assert.equal(err.message, 'Invalid URL: file:///path/to/file/');
+        assert.equal(err.message, 'Unsupported URL protocol');
+        done();
+      });
+    });
+  });
+
+  describe('with an incorrect URL', () => {
+    it('Emits error', done => {
+      miniget('https://').on('error', err => {
+        assert.ok(err);
+        assert.equal(err.message, 'Invalid URL: https://');
+        done();
+      });
+    });
+  });
+
+  describe('with an empty URL', () => {
+    it('Emits error', done => {
+      miniget('').on('error', err => {
+        assert.ok(err);
+        assert.equal(err.message, 'Invalid URL: ');
         done();
       });
     });
@@ -183,6 +203,26 @@ describe('Make a request', () => {
         assert.equal(err.message, 'Invalid URL: undefined');
         done();
       });
+    });
+  });
+
+  describe('with no https library defined', () => {
+    let httpsLib: any;
+    before(() => {
+      // Runs once before the first test in this block
+      httpsLib = miniget.httpLibs['https:'];
+      miniget.httpLibs['https:'] = undefined as unknown as miniget.HTTPLib;
+    });
+    it('Catches error', done => {
+      let stream = miniget('https://supplies.com/boxes');
+      stream.on('error', err => {
+        assert.equal(err.message, 'Unable to access http(s) library(s)');
+        done();
+      });
+    });
+    after(() => {
+      // Runs once before the first test in this block
+      miniget.httpLibs['https:'] = httpsLib;
     });
   });
 
@@ -371,7 +411,7 @@ describe('Make a request', () => {
           },
         });
         stream.on('error', err => {
-          assert.equal(err.message, 'Invalid URL object from `transform` function');
+          assert.equal(err.message, 'Unsupported URL protocol from `transform` function');
           done();
         });
       });
@@ -382,9 +422,33 @@ describe('Make a request', () => {
           transform: (_: RequestOptions) => undefined as unknown as RequestOptions,
         });
         stream.on('error', err => {
-          assert.equal(err.message, 'Invalid URL object from `transform` function');
+          assert.equal(err.message, 'Unsupported URL protocol from `transform` function');
           done();
         });
+      });
+    });
+    describe('with no http(s) library defined', () => {
+      let httpsLib: any;
+      before(() => {
+        // Runs once before the first test in this block
+        httpsLib = miniget.httpLibs['http:'];
+        miniget.httpLibs['http:'] = undefined as unknown as miniget.HTTPLib;
+      });
+      it('Catches error', done => {
+        let stream = miniget('https://supplies.com/boxes', {
+          transform: parsed => {
+            parsed.protocol = 'http:';
+            return parsed;
+          },
+        });
+        stream.on('error', err => {
+          assert.equal(err.message, 'Unable to access http(s) library(s)');
+          done();
+        });
+      });
+      after(() => {
+        // Runs once before the first test in this block
+        miniget.httpLibs['http:'] = httpsLib;
       });
     });
     describe('that throws', () => {
