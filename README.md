@@ -2,7 +2,8 @@
 
 A small http(s) GET library with redirects, retries, reconnects, concatenating or streaming, and no dependencies. This keeps filesize small for potential browser use.
 
-![Depfu](https://img.shields.io/depfu/fent/node-miniget)
+[![npm](https://img.shields.io/npm/v/miniget)](https://www.npmjs.com/package/miniget)
+[![Node.js CI](https://github.com/fent/node-miniget/actions/workflows/nodejs.yml/badge.svg)](https://github.com/fent/node-miniget/actions/workflows/nodejs.yml)
 [![codecov](https://codecov.io/gh/fent/node-miniget/branch/master/graph/badge.svg)](https://codecov.io/gh/fent/node-miniget)
 
 
