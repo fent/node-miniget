@@ -74,7 +74,7 @@ function Miniget(url: string | URL, options: Miniget.Options = {}): Miniget.Stre
   let activeDecodedStream: Transform | null;
   let redirects = 0;
   let retries = 0;
-  let retryTimeout: NodeJS.Timer;
+  let retryTimeout: NodeJS.Timeout;
   let reconnects = 0;
   let contentLength: number;
   let acceptRanges = false;
@@ -82,8 +82,9 @@ function Miniget(url: string | URL, options: Miniget.Options = {}): Miniget.Stre
   let downloaded = 0;
 
   // Check if this is a ranged request.
-  if (opts.headers?.Range) {
-    let r = /bytes=(\d+)-(\d+)?/.exec(`${opts.headers.Range}`);
+  const headers = opts.headers as http.OutgoingHttpHeaders | undefined;
+  if (headers?.Range) {
+    let r = /bytes=(\d+)-(\d+)?/.exec(`${headers.Range}`);
     if (r) {
       rangeStart = parseInt(r[1], 10);
       rangeEnd = parseInt(r[2], 10);
