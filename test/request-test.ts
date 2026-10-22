@@ -75,6 +75,19 @@ describe('Make a request', () => {
       scope.done();
       assert.ok(body.length > 100);
     });
+
+    it('Supports array headers', async() => {
+      const scope = nock('http://website.com', {
+        reqheaders: { 'User-Agent': 'miniget' },
+      })
+        .get('/path')
+        .replyWithFile(200, __filename);
+      let body = await miniget('http://website.com/path', {
+        headers: ['User-Agent', 'miniget'],
+      }).text();
+      scope.done();
+      assert.ok(body.length > 100);
+    });
   });
 
   describe('with bad path', () => {
