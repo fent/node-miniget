@@ -67,6 +67,13 @@ Miniget.defaultOptions = {
 
 function Miniget(url: string | URL, options: Miniget.Options = {}): Miniget.Stream {
   const opts: Miniget.DefaultOptions = Object.assign({}, Miniget.defaultOptions, options);
+  if (Array.isArray(opts.headers)) {
+    const headers: http.OutgoingHttpHeaders = {};
+    for (let i = 0; i < opts.headers.length; i += 2) {
+      headers[opts.headers[i]] = opts.headers[i + 1];
+    }
+    opts.headers = headers;
+  }
   const stream = new PassThrough({ highWaterMark: opts.highWaterMark }) as Miniget.Stream;
   stream.destroyed = stream.aborted = false;
   let activeRequest: ClientRequest;
