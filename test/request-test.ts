@@ -939,5 +939,10 @@ describe('Import the module', () => {
   });
   it('Exposes MinigetError', () => {
     assert.ok(miniget.MinigetError);
+    const err = new miniget.MinigetError('status error', 404);
+    assert.strictEqual(err.message, 'status error');
+    assert.strictEqual(err.statusCode, 404);
+    assert.ok(err instanceof Error);
+    assert.ok(err instanceof miniget.MinigetError);
   });
 });

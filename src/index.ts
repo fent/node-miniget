@@ -16,55 +16,6 @@ const retryStatusCodes = new Set([429, 503]);
 const requestEvents = ['connect', 'continue', 'information', 'socket', 'timeout', 'upgrade'];
 const responseEvents = ['aborted'];
 
-namespace Miniget {
-  export interface Options extends RequestOptions {
-    maxRedirects?: number;
-    maxRetries?: number;
-    maxReconnects?: number;
-    backoff?: { inc: number; max: number };
-    highWaterMark?: number;
-    transform?: (parsedUrl: RequestOptions) => RequestOptions;
-    acceptEncoding?: { [key: string]: () => Transform };
-  }
-
-  export interface DefaultOptions extends Options {
-    maxRedirects: number;
-    maxRetries: number;
-    maxReconnects: number;
-    backoff: { inc: number; max: number };
-  }
-
-  export type defaultOptions = Miniget.Options;
-  export type MinigetError = Error;
-
-  export interface Stream extends PassThrough {
-    abort: (err?: Error) => void;
-    aborted: boolean;
-    destroy: (err?: Error) => this;
-    destroyed: boolean;
-    text: () => Promise<string>;
-    on(event: 'reconnect', listener: (attempt: number, err?: Miniget.MinigetError) => void): this;
-    on(event: 'retry', listener: (attempt: number, err?: Miniget.MinigetError) => void): this;
-    on(event: 'redirect', listener: (url: string) => void): this;
-    on(event: string | symbol, listener: (...args: any) => void): this;
-  }
-}
-
-Miniget.MinigetError = class MinigetError extends Error {
-  public statusCode?: number;
-  constructor(message: string, statusCode?: number) {
-    super(message);
-    this.statusCode = statusCode;
-  }
-};
-
-Miniget.defaultOptions = {
-  maxRedirects: 10,
-  maxRetries: 2,
-  maxReconnects: 0,
-  backoff: { inc: 100, max: 10000 },
-};
-
 function Miniget(url: string | URL, options: Miniget.Options = {}): Miniget.Stream {
   const opts: Miniget.DefaultOptions = Object.assign({}, Miniget.defaultOptions, options);
   if (Array.isArray(opts.headers)) {
@@ -337,6 +288,52 @@ function Miniget(url: string | URL, options: Miniget.Options = {}): Miniget.Stre
 
   process.nextTick(doDownload);
   return stream;
+}
+
+namespace Miniget {
+  export interface Options extends RequestOptions {
+    maxRedirects?: number;
+    maxRetries?: number;
+    maxReconnects?: number;
+    backoff?: { inc: number; max: number };
+    highWaterMark?: number;
+    transform?: (parsedUrl: RequestOptions) => RequestOptions;
+    acceptEncoding?: { [key: string]: () => Transform };
+  }
+
+  export interface DefaultOptions extends Options {
+    maxRedirects: number;
+    maxRetries: number;
+    maxReconnects: number;
+    backoff: { inc: number; max: number };
+  }
+
+  export const defaultOptions: DefaultOptions = {
+    maxRedirects: 10,
+    maxRetries: 2,
+    maxReconnects: 0,
+    backoff: { inc: 100, max: 10000 },
+  };
+
+  export class MinigetError extends Error {
+    public statusCode?: number;
+    constructor(message: string, statusCode?: number) {
+      super(message);
+      this.statusCode = statusCode;
+    }
+  }
+
+  export interface Stream extends PassThrough {
+    abort: (err?: Error) => void;
+    aborted: boolean;
+    destroy: (err?: Error) => this;
+    destroyed: boolean;
+    text: () => Promise<string>;
+    on(event: 'reconnect', listener: (attempt: number, err?: Miniget.MinigetError) => void): this;
+    on(event: 'retry', listener: (attempt: number, err?: Miniget.MinigetError) => void): this;
+    on(event: 'redirect', listener: (url: string) => void): this;
+    on(event: string | symbol, listener: (...args: any) => void): this;
+  }
 }
 
 export = Miniget;
