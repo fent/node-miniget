@@ -290,6 +290,8 @@ function Miniget(url: string | URL, options: Miniget.Options = {}): Miniget.Stre
   return stream;
 }
 
+// Ignore compiler-generated fallback branch from TypeScript namespace IIFE emit
+/* istanbul ignore next */
 namespace Miniget {
   export interface Options extends RequestOptions {
     maxRedirects?: number;

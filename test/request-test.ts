@@ -10,14 +10,17 @@ import miniget from '../dist';
 import nock from 'nock';
 import sinon from 'sinon';
 import streamEqual from 'stream-equal';
-import 'longjohn';
 
 nock.disableNetConnect();
 
 describe('Make a request', () => {
   afterEach(() => nock.cleanAll());
   let clock: sinon.SinonFakeTimers;
-  beforeEach(() => clock = sinon.useFakeTimers());
+  beforeEach(() => {
+    clock = sinon.useFakeTimers({
+      toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'Date'],
+    });
+  });
   afterEach(() => clock.uninstall());
 
   const stub = sinon.stub(console, 'warn');
