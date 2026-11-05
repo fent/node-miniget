@@ -17,6 +17,37 @@ const httpLibs: {
   };
 } = { 'http:': http, 'https:': https };
 const redirectStatusCodes = new Set([301, 302, 303, 307, 308]);
+const credentialHeaders = new Set([
+  'authorization',
+  'cookie',
+  'proxy-authorization',
+]);
+
+// A redirect is unsafe for credentials when it leaves the original origin
+// (protocol, host or port) or downgrades from https to http.
+const isUnsafeRedirect = (from: string | URL, to: string | URL): boolean => {
+  let fromUrl: URL, toUrl: URL;
+  try {
+    fromUrl = new URL(String(from));
+    toUrl = new URL(String(to), fromUrl);
+  } catch (err) {
+    return true;
+  }
+  return fromUrl.origin !== toUrl.origin;
+};
+
+const stripCredentials = (opts: Miniget.Options): void => {
+  delete opts.auth;
+  if (opts.headers && !Array.isArray(opts.headers)) {
+    const headers: http.OutgoingHttpHeaders = {};
+    for (const [key, value] of Object.entries(opts.headers)) {
+      if (!credentialHeaders.has(key.toLowerCase())) {
+        headers[key] = value;
+      }
+    }
+    opts.headers = headers;
+  }
+};
 const retryStatusCodes = new Set([429, 503]);
 
 // `request`, `response`, `abort`, left out, miniget will emit these.
@@ -239,7 +270,15 @@ function Miniget(
           stream.emit('error', new Miniget.MinigetError('Too many redirects'));
         } else {
           if (res.headers.location) {
-            url = res.headers.location;
+            const prevUrl = url;
+            try {
+              url = new URL(res.headers.location, prevUrl).toString();
+            } catch {
+              url = res.headers.location;
+            }
+            if (isUnsafeRedirect(prevUrl, url)) {
+              stripCredentials(opts);
+            }
           } else {
             let err = new Miniget.MinigetError(
               'Redirect status code given with no location',

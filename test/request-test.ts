@@ -227,6 +227,164 @@ describe('Make a request', () => {
       });
     });
 
+    describe('with credentials', () => {
+      const credentialHeaders = {
+        Authorization: 'Bearer secret',
+        Cookie: 'session=secret',
+        'Proxy-Authorization': 'Basic secret',
+        'X-Custom-Header': 'keep-me',
+      };
+
+      it('Strips credentials on cross-origin redirect', (done) => {
+        const scope1 = nock('http://mysite.com', {
+          reqheaders: {
+            authorization: 'Bearer secret',
+            'x-custom-header': 'keep-me',
+          },
+        })
+          .get('/pathy')
+          .reply(302, '', { Location: 'http://othersite.com/redirected' });
+        const scope2 = nock('http://othersite.com', {
+          reqheaders: { 'x-custom-header': 'keep-me' },
+          badheaders: ['authorization', 'cookie', 'proxy-authorization'],
+        })
+          .get('/redirected')
+          .reply(200, 'Helloo!');
+        const stream = miniget('http://mysite.com/pathy', {
+          headers: credentialHeaders,
+          auth: 'user:pass',
+        });
+        stream.on('error', done);
+        stream.on('data', (body) => {
+          scope1.done();
+          scope2.done();
+          assert.equal(body, 'Helloo!');
+          done();
+        });
+        stream.on('redirect', () => {
+          clock.tick(1);
+        });
+      });
+
+      it('Strips credentials on https to http downgrade', (done) => {
+        const scope1 = nock('https://mysite.com', {
+          reqheaders: { cookie: 'session=secret' },
+        })
+          .get('/pathy')
+          .reply(302, '', { Location: 'http://mysite.com/redirected' });
+        const scope2 = nock('http://mysite.com', {
+          badheaders: ['authorization', 'cookie', 'proxy-authorization'],
+        })
+          .get('/redirected')
+          .reply(200, 'Helloo!');
+        const stream = miniget('https://mysite.com/pathy', {
+          headers: credentialHeaders,
+        });
+        stream.on('error', done);
+        stream.on('data', (body) => {
+          scope1.done();
+          scope2.done();
+          assert.equal(body, 'Helloo!');
+          done();
+        });
+        stream.on('redirect', () => {
+          clock.tick(1);
+        });
+      });
+
+      it('Strips `auth` option on cross-origin redirect', (done) => {
+        const scope1 = nock('http://mysite.com')
+          .get('/pathy')
+          .basicAuth({ user: 'user', pass: 'pass' })
+          .reply(302, '', { Location: 'http://mysite.com:8080/redirected' });
+        const scope2 = nock('http://mysite.com:8080', {
+          badheaders: ['authorization'],
+        })
+          .get('/redirected')
+          .reply(200, 'Helloo!');
+        const stream = miniget('http://mysite.com/pathy', {
+          auth: 'user:pass',
+        });
+        stream.on('error', done);
+        stream.on('data', (body) => {
+          scope1.done();
+          scope2.done();
+          assert.equal(body, 'Helloo!');
+          done();
+        });
+        stream.on('redirect', () => {
+          clock.tick(1);
+        });
+      });
+
+      it('Keeps credentials on same-origin redirect', (done) => {
+        const scope = nock('https://mysite.com', {
+          reqheaders: {
+            authorization: 'Bearer secret',
+            cookie: 'session=secret',
+            'proxy-authorization': 'Basic secret',
+          },
+        })
+          .get('/pathy')
+          .reply(302, '', { Location: 'https://mysite.com/redirected' })
+          .get('/redirected')
+          .reply(200, 'Helloo!');
+        const stream = miniget('https://mysite.com/pathy', {
+          headers: credentialHeaders,
+        });
+        stream.on('error', done);
+        stream.on('data', (body) => {
+          scope.done();
+          assert.equal(body, 'Helloo!');
+          done();
+        });
+        stream.on('redirect', () => {
+          clock.tick(1);
+        });
+      });
+
+      it('Follows relative redirect and preserves credentials', (done) => {
+        const scope = nock('https://mysite.com', {
+          reqheaders: {
+            authorization: 'Bearer secret',
+            cookie: 'session=secret',
+            'proxy-authorization': 'Basic secret',
+          },
+        })
+          .get('/pathy')
+          .reply(302, '', { Location: '/redirected' })
+          .get('/redirected')
+          .reply(200, 'Hello from relative!');
+        const stream = miniget('https://mysite.com/pathy', {
+          headers: credentialHeaders,
+        });
+        stream.on('error', done);
+        stream.on('data', (body) => {
+          scope.done();
+          assert.equal(body, 'Hello from relative!');
+          done();
+        });
+        stream.on('redirect', () => {
+          clock.tick(1);
+        });
+      });
+
+      it('Emits error when redirect location is an invalid URL', (done) => {
+        const scope = nock('http://mysite.com')
+          .get('/pathy')
+          .reply(302, '', { Location: 'http://::1' });
+        const stream = miniget('http://mysite.com/pathy');
+        stream.on('error', (err) => {
+          scope.done();
+          assert.ok(err);
+          done();
+        });
+        stream.on('redirect', () => {
+          clock.tick(1);
+        });
+      });
+    });
+
     describe('too many times', () => {
       it('Emits error after 3 retries', (done) => {
         const scope = nock('http://yoursite.com')
