@@ -455,6 +455,28 @@ namespace Miniget {
     on(event: 'redirect', listener: (url: string) => void): this;
     on(event: string | symbol, listener: (...args: any) => void): this;
   }
+
+  export interface MinigetFunction {
+    (url: string | URL, options?: Miniget.Options): Miniget.Stream;
+    miniget: MinigetFunction;
+    Miniget: MinigetFunction;
+    default: MinigetFunction;
+    MinigetError: typeof MinigetError;
+    defaultOptions: DefaultOptions;
+  }
 }
 
-export = Miniget;
+const exportedMiniget = Miniget as unknown as Miniget.MinigetFunction;
+exportedMiniget.default = exportedMiniget;
+exportedMiniget.miniget = exportedMiniget;
+exportedMiniget.Miniget = exportedMiniget;
+
+// Statically recognizable exports for Node.js cjs-module-lexer (ESM named import support)
+module.exports = exportedMiniget;
+module.exports.default = exportedMiniget;
+module.exports.miniget = exportedMiniget;
+module.exports.Miniget = exportedMiniget;
+module.exports.MinigetError = Miniget.MinigetError;
+module.exports.defaultOptions = Miniget.defaultOptions;
+
+export = exportedMiniget;
