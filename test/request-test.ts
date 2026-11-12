@@ -5,7 +5,7 @@ import assert from 'assert';
 import { Transform } from 'stream';
 import { IncomingMessage, ClientRequest, RequestOptions } from 'http';
 
-import miniget from '../dist';
+import miniget from '../src';
 
 import nock from 'nock';
 import sinon from 'sinon';
