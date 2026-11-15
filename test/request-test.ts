@@ -2,7 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import zlib from 'zlib';
 import assert from 'assert';
-import { Transform } from 'stream';
+import { PassThrough, Transform } from 'stream';
 import { IncomingMessage, ClientRequest, RequestOptions } from 'http';
 
 import miniget from '../src';
@@ -654,6 +654,64 @@ describe('Make a request', () => {
         assert.equal(downloaded, filesize);
         done();
       });
+    });
+
+    it('Resolves .text() after reconnecting without an error', async () => {
+      const textBody = '0123456789'.repeat(1000);
+      const firstChunk = textBody.slice(0, 3000);
+      const response = new PassThrough();
+      const scope = nock('http://mysite.com')
+        .get('/myfile')
+        .reply(200, () => response, {
+          'content-length': `${textBody.length}`,
+          'accept-ranges': 'bytes',
+        });
+      const stream = miniget('http://mysite.com/myfile', { maxReconnects: 1 });
+      let req: ClientRequest, res: IncomingMessage;
+      stream.on('request', (a) => {
+        req = a;
+      });
+      stream.on('response', (a) => {
+        res = a;
+        response.write(firstChunk);
+      });
+      let reconnects = 0;
+      stream.on('reconnect', () => {
+        reconnects++;
+        clock.tick(100);
+      });
+      let downloaded = 0,
+        destroyed = false,
+        error: Error | undefined;
+      stream.on('data', (chunk) => {
+        downloaded += chunk.length;
+        if (!destroyed && downloaded >= firstChunk.length) {
+          destroyed = true;
+          scope.get('/myfile').reply(206, textBody.slice(downloaded), {
+            'content-range': `bytes ${downloaded}-${textBody.length}/${textBody.length}`,
+            'content-length': `${textBody.length - downloaded}`,
+            'accept-ranges': 'bytes',
+          });
+          const err = Object.assign(new Error('aborted'), {
+            code: 'ECONNRESET',
+          });
+          res.unpipe();
+          req.emit('close');
+          res.emit('error', err);
+          response.destroy();
+        }
+      });
+      stream.on('error', (err) => {
+        error = err;
+      });
+
+      const body = await stream.text();
+
+      scope.done();
+      assert.ifError(error);
+      assert.ok(destroyed);
+      assert.equal(reconnects, 1);
+      assert.equal(body, textBody);
     });
 
     describe('without an error', () => {

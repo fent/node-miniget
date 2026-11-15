@@ -87,6 +87,7 @@ function Miniget(
   let redirects = 0;
   let retries = 0;
   let retryTimeout: NodeJS.Timeout;
+  let attemptId = 0;
   let reconnects = 0;
   let contentLength: number;
   let acceptRanges = false;
@@ -120,9 +121,8 @@ function Miniget(
   const reconnect = (err?: Miniget.MinigetError) => {
     activeDecodedStream = null;
     retries = 0;
-    let inc = opts.backoff.inc;
-    let ms = Math.min(inc, opts.backoff.max);
-    retryTimeout = setTimeout(doDownload, ms);
+    const ms = Math.min(opts.backoff.inc, opts.backoff.max);
+    scheduleDownload(ms, true);
     stream.emit('reconnect', reconnects, err);
   };
 
@@ -152,10 +152,10 @@ function Miniget(
       (!retryOptions.err || retryOptions.err.message === 'ENOTFOUND') &&
       retries++ < opts.maxRetries
     ) {
-      let ms =
+      const ms =
         retryOptions.retryAfter ||
         Math.min(retries * opts.backoff.inc, opts.backoff.max);
-      retryTimeout = setTimeout(doDownload, ms);
+      scheduleDownload(ms, true);
       stream.emit('retry', retries, retryOptions.err);
       return true;
     }
@@ -168,7 +168,13 @@ function Miniget(
     }
   };
 
-  const doDownload = () => {
+  const scheduleDownload = (ms: number, saveTimeout = false): void => {
+    const currentAttemptId = ++attemptId;
+    const timeout = setTimeout(() => doDownload(currentAttemptId), ms);
+    if (saveTimeout) retryTimeout = timeout;
+  };
+
+  const doDownload = (currentAttemptId = ++attemptId) => {
     let parsed: RequestOptions = {},
       httpLib;
     try {
@@ -226,7 +232,11 @@ function Miniget(
     }
 
     const onError = (err: Miniget.MinigetError): void => {
-      if (stream.destroyed || stream.readableEnded) {
+      if (
+        stream.destroyed ||
+        stream.readableEnded ||
+        currentAttemptId !== attemptId
+      ) {
         return;
       }
       cleanup();
@@ -288,8 +298,7 @@ function Miniget(
             cleanup();
             return;
           }
-          setTimeout(
-            doDownload,
+          scheduleDownload(
             parseInt(res.headers['retry-after'] || '0', 10) * 1000,
           );
           stream.emit('redirect', url);
