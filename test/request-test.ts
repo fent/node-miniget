@@ -865,10 +865,6 @@ describe('Make a request', () => {
             }
           }
         });
-        stream.on('end', () => {
-          // Does fire in node v12
-          // done(Error('should not end'));
-        });
       });
     });
 
@@ -940,9 +936,6 @@ describe('Make a request', () => {
         stream.on('end', () => {
           done(Error('`end` event should not be called'));
         });
-        stream.on('error', () => {
-          // Ignore error on node v10, 12.
-        });
         stream.destroy();
         done();
       });
@@ -961,9 +954,6 @@ describe('Make a request', () => {
         });
         stream.on('data', () => {
           done(Error('Should not read any data'));
-        });
-        stream.on('error', () => {
-          // Ignore error on node v10, 12.
         });
         stream.on('request', () => {
           stream.destroy();
@@ -1003,9 +993,6 @@ describe('Make a request', () => {
         const stream = miniget('http://anime.me');
         stream.on('end', () => {
           done(Error('`end` event should not be called'));
-        });
-        stream.on('error', () => {
-          // Ignore error on node v10, 12.
         });
         stream.on('abort', done);
         stream.abort();

@@ -270,11 +270,6 @@ function Miniget(
     };
 
     activeRequest = httpLib.request(parsed, (res: IncomingMessage) => {
-      // Needed for node v10, v12.
-      // istanbul ignore next
-      if (stream.destroyed) {
-        return;
-      }
       if (redirectStatusCodes.has(res.statusCode as number)) {
         if (redirects++ >= opts.maxRedirects) {
           stream.emit('error', new Miniget.MinigetError('Too many redirects'));
